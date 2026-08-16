@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.5.2
+
+- 新增 `tests/test_latex_to_omml.py` 回归测试：22 个生产公式（ch7-10 提取）× 4 项断言 + 3 个结构规则，91 用例全过；无 MML2OMML.XSL 时自动 skip。
+- 新增本地 `sync_install.sh`：一键镜像 `.zcode` → `.claude`（排除 `__pycache__`），防止手动复制漏文件。
+
 ## 2026-08-16 v2.5.1
 
 - `latex_to_omml.py` 本地点位改为环境变量 + 候选路径（`MATHDOC_MML2OMML` 优先，回退 Office 常用安装路径），与发布版一致，换机器不再需要改代码。

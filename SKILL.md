@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.5
+version: 2.5.1
 author: user
 last_update: 2026-08-16
 status: production
@@ -155,6 +155,7 @@ python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.doc
 python scripts/validator.py proof.docx --level 2
 python scripts/formula_check.py --file new_formulas.txt
 python scripts/render_check.py doc.docx 定理 定义 性质
+python -m pytest tests/ -v
 ```
 
 ## Equation Numbering
