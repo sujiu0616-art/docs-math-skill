@@ -11,18 +11,14 @@
 
 [examples/](examples/README.md) 里已提交 4 份真实产物（讲义、证明、习题集、论文），打开即用。
 
-## 为什么可靠（同类 skill 很少做到）
+## 优点
 
-| 能力 | 同类转换型 skill 常见 | 本仓库 |
-|---|---|---|
-| LaTeX → Word 原生 OMML | 部分，常退化为 Unicode/图片 | ✅ 强制 OMML；裸 `\|x\|` 报错而不是静默产出坏公式 |
-| 生成前公式预检 | ❌ | ✅ `formula_check.py` 批量验证 |
-| 生成后独立校验（公式/字体/表格/分页断言） | ❌ | ✅ `validator.py --level 1/2/3` |
-| 渲染验证（像素 diff / 文本冒烟） | ❌ | ✅ `render_diff.py` / `render_check.py` |
-| 回归测试 | ❌ | ✅ 22 个生产公式、91 用例、CI 自动跑 |
-| 交付报告（可证明公式是原生 OMML） | ❌ | ✅ `publish_report.py` |
-
-定位与 [XiaoMaColtAI/math-modeling-skill](https://github.com/XiaoMaColtAI/math-modeling-skill) 不同：它管建模竞赛的完整三阶段流程，本仓库只占「数学文档生产的质检」这一个窄定位——文档转换领域不缺"转出来"，缺"证明转出来是对的"。
+- **强制原生 OMML**：公式是 Word 可双击编辑的原生方程，不是 Unicode 近似或截图；裸 `\|x\|` 等危险语法直接报错，不会静默产出坏公式
+- **生成前公式预检**：`formula_check.py` 批量验证全部 LaTeX 公式可转 OMML，0 失败再动笔
+- **生成后独立校验**：`validator.py --level 1/2/3` 对公式、字体、表格、分页做可执行断言
+- **渲染验证**：像素 diff（`render_diff.py`）或轻量文本冒烟（`render_check.py`）
+- **回归测试**：22 个生产公式、91 个用例，CI 自动跑
+- **交付报告**：`publish_report.py` 输出公式数、校验项、引擎来源，可证明公式是原生 OMML
 
 ## 怎么验证（每条命令都能跑）
 
