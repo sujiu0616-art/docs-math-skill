@@ -50,6 +50,13 @@
 
 固定八步：读原文 dump → 提取章节结构 → 翻译原表格 → 写生成脚本 → 生成 → 验证 → 渲染冒烟 → 清理临时 PDF。脚本间复制改参（mapping 表 + 性质表 + 变换对表 + 对比表），验证通过率从第一章稳定到最后一章。
 
+## 8. naryPr 结构差异导致求和上下限变角标（2026-08-16）
+
+- 现象：同一查看器里，一份文档的 ∑ 上下标正确，另一份变成侧边角标；两份的 `limLoc` 都是 `undOvr`，XML 断言全过。
+- 根因：naryPr 结构不同。MML2OMML.XSL 输出的 naryPr 恒带 `subHide/supHide="off"` 且无 `ctrlPr`；手动构造的参考文档是 `ctrlPr`(Cambria Math) 且无 `subHide/supHide`。查看器对两种结构渲染不同。
+- 解决：`fix_sum_limits` 增加 naryPr 归一化（`_narypr_cambria`）：移除 `subHide/supHide`、追加 `ctrlPr` Cambria Math，统一成参考结构。所有公式入口（`latex_to_omml_fixed_alt`）一律走它，不要在生成脚本里另写 limLoc 修补函数。
+- 教训：`limLoc=undOvr` 正确 ≠ 渲染正确；校验要看 naryPr 完整结构；生成脚本里复制粘贴"补 limLoc"的逻辑会漂移成第二条链，改一处必须全局收敛。
+
 ## 与 skill 现有能力的关系
 
 | 经验 | 状态 |
