@@ -2,8 +2,8 @@
 
 ## Font
 
-- 中文标题：黑体。
-- 中文正文：方正小标宋简体；机器未安装时回退宋体，并在交付说明中注明。
+- 中文标题：章节标题（Heading 1-3）用黑体；大标题（Title、文档首行）用方正小标宋简体。
+- 中文正文：宋体。
 - 数字、英文：Times New Roman。
 - 公式字体：不手动指定，保留兼容性最好的数学字体（Word/WPS 默认，通常为 Cambria Math）；必须显式设置时使用 Times New Roman。
 - 字体通过 `doc.styles` 设置一次，不逐 run 写。
@@ -21,7 +21,7 @@ def configure_styles(doc):
     normal.font.size = Pt(12)
     rpr = normal.element.get_or_add_rPr()
     rfonts = rpr.get_or_add_rFonts()
-    rfonts.set(qn('w:eastAsia'), '方正小标宋简体')
+    rfonts.set(qn('w:eastAsia'), '宋体')
 
     for lvl, (size, cn_font) in {
         1: (22, '黑体'),
@@ -51,8 +51,8 @@ def configure_styles(doc):
 无 baseline 文档或 baseline 不可读时的回退预设：
 
 - Page: A4，页边距 2.54cm。
-- Body: 方正小标宋简体（回退宋体）+ Times New Roman。
-- Headings: 黑体 + Times New Roman；H1 16pt、H2 13pt、H3 11pt；标题蓝 `#2E74B5`；Title 22pt bold black。
+- Body: 宋体 + Times New Roman。
+- Headings: 黑体 + Times New Roman；H1 16pt、H2 13pt、H3 11pt；标题蓝 `#2E74B5`；Title 大标题 22pt bold black、中文用方正小标宋简体。
 - Math: OMML via latex2mathml -> MML2OMML pipeline。
 
 ## Table

@@ -1,5 +1,11 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.4.1
+
+- 正文字体从 方正小标宋简体 改为 宋体（正文即 Normal 样式）。
+- 大标题（Title/文档首行）固定为 方正小标宋简体：`mathdoc_cli.py` 新增 `TITLE_CN` 并写入 title run 的 `w:eastAsia`；validator 增加 Title 样式检查；docx-style.md 与 SKILL.md 同步规则。
+- 章节标题（Heading 1-3）保持 黑体 不变。
+
 ## 2026-08-16 v2.4
 
 - 新增 `scripts/formula_check.py`：生成前批量验证 LaTeX 公式与 latex_to_omml 的兼容性，避免生成中途失败。

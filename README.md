@@ -5,7 +5,7 @@ A Claude Code / Codex / ZCode skill for generating professional mathematical doc
 ## Features
 
 - **OMML math pipeline**: LaTeX → MathML → Word-native OMML via Microsoft's `MML2OMML.XSL` — formulas are native Word equations, not Unicode approximations or images.
-- **Chinese typography rules**: 方正小标宋简体 body, 黑体 headings, Times New Roman for Latin/digits.
+- **Chinese typography rules**: 宋体 body, 黑体 headings, Times New Roman for Latin/digits.
 - **Three-level validation**: `validator.py --level 1|2|3` checks equations, fonts, table grids, header rows (`cantSplit`/`tblHeader`/`E8EEF5` shading), page layout — as executable assertions, not eyeballing.
 - **Rendering QA**: pixel diff between PDFs (`render_diff.py`) or a lightweight text-probe smoke test (`render_check.py`).
 - **Pre-generation formula check**: `formula_check.py` batch-verifies every LaTeX formula against the converter before you write the generator.

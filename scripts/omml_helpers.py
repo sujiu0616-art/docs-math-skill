@@ -14,7 +14,7 @@ from docx.oxml.ns import qn
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, Inches
 
-FONT_CN = '方正小标宋简体'        # FangZheng XiaoBiaoSong
+FONT_CN = '宋体'        # SimSun
 FONT_CN_FALLBACK = '宋体'        # SimSun fallback
 FONT_HEADING_CN = '黑体'          # SimHei
 FONT_MATH = 'Times New Roman'

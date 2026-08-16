@@ -42,7 +42,7 @@ python scripts/render_diff.py before.pdf after.pdf --dpi 150 --threshold 0.02
 - 积分 `limLoc=subSup`；求和/连乘 `limLoc=undOvr`；`lim` 必须是 `m:limLow`。
 - 文本 run 中不能有 `**`；CJK 上下文中出现可疑 `$` 要报错。
 - `w:t` 不能有首尾空格。
-- Normal eastAsia 必须是 `方正小标宋简体` 或回退 `宋体`；Heading eastAsia 是 `黑体`；Latin/digits 是 Times New Roman。
+- Normal eastAsia 必须是 `宋体`；Heading eastAsia 是 `黑体`；Latin/digits 是 Times New Roman。
 - `w:tblGrid/gridCol` 数量和宽度必须匹配；只设 `cell.width` 不够。
 - 表头行有 `tblHeader`、`cantSplit`；表头单元格有 `shd E8EEF5`；所有单元格 `vAlign=center`。
 - LibreOffice 可用时转 PDF 检查；没有渲染工具时明确说明“渲染未验证”。
