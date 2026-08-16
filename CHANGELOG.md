@@ -1,5 +1,12 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.6
+
+- 新增 `scripts/publish_report.py` 交付报告：对生成的 docx 跑 validator 并输出 `validation-report.md`（公式数、校验项、OMML 引擎来源），构成 source/result/report 三件套，可证明公式是原生 OMML。
+- 新增 `examples/`：讲义/证明/习题集/论文 4 份样例 docx + 复现脚本 + 交付报告示例；新增 `tests/test_mathml_only.py` 无 Office 可跑的轻量测试。
+- 新增 GitHub Actions CI（pytest，OMML 用例无 XSL 自动 skip）与 MIT LICENSE。
+- README 重写：第一屏改为「能生成什么/为什么可靠/怎么验证」，能力对比表、通用目录表安装、测试徽章。
+
 ## 2026-08-16 v2.5.3
 
 - 明确字体/排版规则的语义：SKILL.md 与 docx-style.md 标注为「用户未要求时的默认值」，用户明确指定格式时以用户为准，默认规则不覆盖用户格式。

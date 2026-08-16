@@ -151,6 +151,7 @@ Load the relevant reference before generating:
 - `scripts/render_diff.py`: pixel diff between rendered PDFs.
 - `scripts/formula_check.py`: batch-verify LaTeX formulas against latex_to_omml before generating.
 - `scripts/render_check.py`: lightweight render smoke test (LibreOffice -> PDF -> text probes).
+- `scripts/publish_report.py`: delivery report — validate a docx and write `validation-report.md` (equation count, checks, OMML engine), producing the source/result/report triplet.
 
 ```bash
 python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
