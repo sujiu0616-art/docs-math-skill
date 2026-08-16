@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.5
+
+- 全面通用化：SKILL.md 描述与触发词不再枚举具体文档类型，任何数学 Word 文档需求（讲义、习题集、笔记、论文、报告）均可命中；Task Router 增加兜底路由，删除"复习清单"场景示例。
+- `references/lessons.md` 去掉信号与系统项目痕迹，改写为通用批量生成经验。
+
 ## 2026-08-16 v2.4.3
 
 - 西文与数字规则落地：validator 对 Normal 与 Heading 1-3 增加 `w:ascii`/`w:hAnsi` = Times New Roman 检查（规则原本已在 SKILL.md/docx-style.md）。

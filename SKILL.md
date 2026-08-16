@@ -1,9 +1,9 @@
 ---
 name: math-doc
-description: Generate mathematical documents (proofs, derivations, notes) in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format a mathematical document, proof, or formula-heavy output.
-version: 2.3
+description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
+version: 2.5
 author: user
-last_update: 2026-08-10
+last_update: 2026-08-16
 status: production
 ---
 
@@ -11,13 +11,14 @@ status: production
 
 ## Purpose
 
-Generate professional mathematical documents: proofs, derivations, mathematical notes, formula-heavy reports. Output can be .docx, LaTeX, or Markdown.
+Generate professional mathematical documents for any scenario — lecture notes, exercise sets, summaries, proofs, reports, papers, or anything formula-heavy. Output can be .docx, LaTeX, or Markdown.
 
 ## Trigger
 
 Use this skill when:
 
-- user requests a mathematical document or proof
+- user requests any mathematical document (notes, exercises, summaries, proofs, reports)
+- user requests a formula-heavy Word document
 - user requests formula formatting or OMML conversion
 - user requests Markdown/LaTeX to .docx generation
 - user requests checking the format of a generated math document
@@ -43,9 +44,10 @@ Ask only when missing information affects the result. Otherwise use reasonable d
 
 ## Task Router
 
-- `帮我写证明` -> math-doc -> ask `需要Word吗？`; if yes, use docx pipeline.
+- `帮我写证明`、`写讲义`、`整理笔记`、`出习题集` -> math-doc -> ask `需要Word吗？`; if yes, use docx pipeline.
 - `帮我改公式` -> Formula mode: return LaTeX/Markdown unless user asks for .docx.
 - `检查论文格式` -> Validator mode: run `scripts/validator.py` with an appropriate level.
+- 其他任何数学文档请求 -> 同一流水线，按 Working Mode 分类处理。
 - Existing document with a template or baseline -> template/baseline wins.
 
 ## Pipeline
@@ -152,7 +154,7 @@ Load the relevant reference before generating:
 python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
 python scripts/validator.py proof.docx --level 2
 python scripts/formula_check.py --file new_formulas.txt
-python scripts/render_check.py proof.docx 定理 证明 复习清单
+python scripts/render_check.py doc.docx 定理 定义 性质
 ```
 
 ## Equation Numbering
