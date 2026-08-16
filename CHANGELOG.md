@@ -13,7 +13,7 @@
 ## 2026-08-16 v2.5
 
 - 全面通用化：SKILL.md 描述与触发词不再枚举具体文档类型，任何数学 Word 文档需求（讲义、习题集、笔记、论文、报告）均可命中；Task Router 增加兜底路由，删除"复习清单"场景示例。
-- `references/lessons.md` 去掉信号与系统项目痕迹，改写为通用批量生成经验。
+- `references/lessons.md` 去掉具体项目痕迹，改写为通用批量生成经验。
 
 ## 2026-08-16 v2.4.3
 
@@ -35,7 +35,7 @@
 
 - 新增 `scripts/formula_check.py`：生成前批量验证 LaTeX 公式与 latex_to_omml 的兼容性，避免生成中途失败。
 - 新增 `scripts/render_check.py`：轻量渲染冒烟（soffice 转 PDF + pypdf 提取文本 + probes）；probe 需与文档用词字节级一致。
-- 新增 `references/lessons.md`：信号与系统 7-10 章批量生成实战——公式预验证、断言验证、渲染冒烟翻车记录（probe 空格/缩写/章节专属词）、GBK 乱码假警报、模板继承与页码 field、逐章流水线。
+- 新增 `references/lessons.md`：批量章节文档生成实战（2026-08）——公式预验证、断言验证、渲染冒烟翻车记录（probe 空格/缩写/章节专属词）、GBK 乱码假警报、模板继承与页码 field、逐章流水线。
 - SKILL.md：Validation 增加"生成前 formula_check"步骤；Rendering 与 Scripts 补充新工具用法。
 
 ## 2026-08-10 v2.3
@@ -62,5 +62,5 @@
 
 ## 历史事故记录
 
-- 2026-08-02：信号与系统第三章 docx 只设置 `cell.width`，最终 `tblGrid` 仍是均分宽度，Word 按均分列渲染。修复：同时写 `tblGrid/gridCol`、`tcW`、`tblLayout fixed`。
-- 2026-08-02：同一批第三章 docx 只调列宽，漏掉表头底纹、垂直居中和跨页表头。修复：`tblHeader`、`cantSplit`、`keepNext`、`shd E8EEF5`、`vAlign=center`。
+- 2026-08-02：批量章节 docx 只设置 `cell.width`，最终 `tblGrid` 仍是均分宽度，Word 按均分列渲染。修复：同时写 `tblGrid/gridCol`、`tcW`、`tblLayout fixed`。
+- 2026-08-02：同一批章节 docx 只调列宽，漏掉表头底纹、垂直居中和跨页表头。修复：`tblHeader`、`cantSplit`、`keepNext`、`shd E8EEF5`、`vAlign=center`。
