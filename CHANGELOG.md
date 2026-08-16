@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.4.2
+
+- 二级标题（Heading 2）规则明确为黑体加粗：SKILL.md 与 docx-style.md 补充规则，validator 对 Heading 2 增加 bold 检查。
+- 章节标题字体体系：大标题（Title）方正小标宋简体、正文（Normal）宋体、章节标题（Heading 1-3）黑体（Heading 2 加粗）。
+
 ## 2026-08-16 v2.4.1
 
 - 正文字体从 方正小标宋简体 改为 宋体（正文即 Normal 样式）。

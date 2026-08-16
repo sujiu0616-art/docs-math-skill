@@ -86,6 +86,8 @@ def check_academic(doc: Document) -> list[str]:
         rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
         if rpr is None or rfonts is None or rfonts.get(qn('w:eastAsia')) != expected_cn:
             raise AssertionError(f'{name} eastAsia must be {expected_cn}')
+        if name == 'Heading 2' and style.font.bold is not True:
+            raise AssertionError('Heading 2 must be bold')
     checks.append('Heading fonts ok')
 
     if 'Title' in doc.styles:

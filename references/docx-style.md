@@ -2,7 +2,7 @@
 
 ## Font
 
-- 中文标题：章节标题（Heading 1-3）用黑体；大标题（Title、文档首行）用方正小标宋简体。
+- 中文标题：章节标题（Heading 1-3）用黑体，其中二级标题（Heading 2）黑体加粗；大标题（Title、文档首行）用方正小标宋简体。
 - 中文正文：宋体。
 - 数字、英文：Times New Roman。
 - 公式字体：不手动指定，保留兼容性最好的数学字体（Word/WPS 默认，通常为 Cambria Math）；必须显式设置时使用 Times New Roman。

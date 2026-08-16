@@ -71,7 +71,7 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 ### Styles
 
 - Modify global styles once via `doc.styles`; do not write font attributes per run.
-- Chinese headings: 黑体. Chinese body: 宋体. Title/大标题（文档首行）: 方正小标宋简体.
+- Chinese headings: 黑体. Heading 2（二级标题）必须黑体加粗. Chinese body: 宋体. Title/大标题（文档首行）: 方正小标宋简体.
 - Latin/digits: Times New Roman. Formula font: leave compatible default.
 - Heading 1-3 样式级必须显式设置 `eastAsia=黑体`；只设置标题 run 字体不足以通过 validator。
 - No decorative literal spaces. Strip text segments, no spaces around `=`/`+`/`-`; minus sign U+2212.
