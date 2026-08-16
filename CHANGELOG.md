@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.7.1
+
+- 表格标题格式规则更新：表题（表N xxx）位于表格**下方**、**居中**、常规字体**不加粗**、不用黑体（latin=Times New Roman）。旧约定「表上方黑体加粗」作废。SKILL.md Styles 节与 `references/docx-style.md` Table 节同步。
+- 该规则经 `mathdoc_learn.py` 沉淀为第一条个人经验（`~/.config/math-doc/user-lessons.md`），动态 skill 首次产出。
+
 ## 2026-08-16 v2.7
 
 - 动态 skill：新增 `scripts/mathdoc_learn.py`，任务完成自动把经验追加到个人经验库 `~/.config/math-doc/user-lessons.md`（自动带日期、问题/根因/修复/验证格式、同天合并、去重）；经验库在 skill 目录之外，`sync_install.sh` 不覆盖。

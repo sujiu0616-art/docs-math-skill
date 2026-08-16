@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.7
+version: 2.7.1
 author: user
 last_update: 2026-08-16
 status: production
@@ -78,6 +78,7 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 - Chinese headings: 黑体. Heading 2（二级标题）必须黑体加粗. Chinese body: 宋体. Title/大标题（文档首行）: 方正小标宋简体.
 - Latin/digits: Times New Roman. Formula font: leave compatible default.
 - Heading 1-3 样式级必须显式设置 `eastAsia=黑体`；只设置标题 run 字体不足以通过 validator。
+- 表格标题（表N xxx）：在表格**下方**居中，常规字体**不加粗**、不用黑体（latin=Times New Roman），space_before 4 / space_after 6。用户格式要求，默认即此格式，旧「表上方黑体加粗」不再使用。
 - No decorative literal spaces. Strip text segments, no spaces around `=`/`+`/`-`; minus sign U+2212.
 
 ### Validation

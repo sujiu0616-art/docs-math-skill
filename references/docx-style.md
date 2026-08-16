@@ -61,6 +61,7 @@ def configure_styles(doc):
 
 必做：
 
+- 表题（表N xxx）：位于表格**下方**、**居中**、常规字体**不加粗**、不用黑体（latin 用 Times New Roman）——用户格式要求，2026-08-16；旧约定「表上方黑体加粗」作废。实现：表格元素后追加居中段落，`space_before=4 / space_after=6`。
 - 表头跨页重复：第一行 `w:tblHeader`。
 - 表头底纹 `E8EEF5`。
 - 所有单元格 `vAlign=center`。
