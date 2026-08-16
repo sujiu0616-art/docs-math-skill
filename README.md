@@ -38,7 +38,7 @@ python scripts/validator.py proof.docx --level 2
 python scripts/formula_check.py --file new_formulas.txt
 
 # Lightweight render smoke test
-python scripts/render_check.py proof.docx 定理 证明 复习清单
+python scripts/render_check.py proof.docx 定理 定义 性质
 ```
 
 ## Layout
