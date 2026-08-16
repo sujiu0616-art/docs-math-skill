@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.7.1
+version: 2.7.2
 author: user
 last_update: 2026-08-16
 status: production
@@ -68,6 +68,7 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 - Integral `∫`: `limLoc="subSup"`.
 - Summation `∑` / product `∏`: `limLoc="undOvr"`.
 - `lim`: `m:limLow`, not `m:sSub`.
+- `aligned` 环境禁止直接喂 latex2mathml（会产出裸 `&` 崩溃）；入口 `latex_to_omml` 已自动改写为 `array{rl}` → OMML `m:m`。所有公式必须走该入口，不要绕过。
 - Handle `\underbrace` and `mstyle` per `references/omml.md`.
 
 ### Styles

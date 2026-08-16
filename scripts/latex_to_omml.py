@@ -51,8 +51,58 @@ def latex_to_omml(latex_str):
     return latex_to_omml_alt(latex_str)
 
 
+def _rewrite_aligned(latex):
+    """LaTeX 预处理：把 latex2mathml 不认识的 aligned 环境改写为 array 环境。
+
+    latex2mathml 会把 aligned 里的对齐符 & 当普通字符输出成 <mi>&</mi>
+    （裸 &，非法 XML），导致 etree 解析崩溃、整条转换链失败。array 环境会被
+    正确转成 OMML m:m（多行对齐数组，Word 可编辑）。aligned 的对齐语义为
+    「& 前右对齐、后左对齐」，等价 array{rl}；[t]/[b]/[c] 垂直位置参数
+    latex2mathml 不支持，安全剥离（仅丢失垂直位置，内容不变）。
+    嵌套 aligned 用深度匹配处理。
+    """
+    parts = []
+    pos = 0
+    while True:
+        start = latex.find(r'\begin{aligned}', pos)
+        if start == -1:
+            parts.append(latex[pos:])
+            return ''.join(parts)
+        parts.append(latex[pos:start])
+        body_pos = start + len(r'\begin{aligned}')
+        if body_pos < len(latex) and latex[body_pos] == '[':
+            eb = latex.find(']', body_pos)
+            if eb != -1:
+                body_pos = eb + 1  # 剥离 [t]/[b]/[c]
+        depth = 1
+        scan = body_pos
+        matched = None
+        while scan <= len(latex):
+            nb = latex.find(r'\begin{aligned}', scan)
+            ne = latex.find(r'\end{aligned}', scan)
+            if ne == -1:
+                break
+            if nb != -1 and nb < ne:
+                depth += 1
+                scan = nb + len(r'\begin{aligned}')
+            else:
+                depth -= 1
+                if depth == 0:
+                    matched = ne
+                    break
+                scan = ne + len(r'\end{aligned}')
+        if matched is None:
+            # 无配对的 \end{aligned}：原样保留剩余，避免丢内容
+            parts.append(latex[start:])
+            return ''.join(parts)
+        body = _rewrite_aligned(latex[body_pos:matched])  # 递归处理嵌套 aligned
+        parts.append(r'\begin{array}{rl}' + body + r'\end{array}')
+        pos = matched + len(r'\end{aligned}')
+
+
 def latex_to_omml_alt(latex_str, alttext=None):
     """Convert LaTeX to OMML and optionally preserve alttext on the oMath root."""
+    latex_str = _rewrite_aligned(latex_str)
     mathml = latex2mathml.converter.convert(latex_str)
     tree = etree.fromstring(mathml.encode())
     xslt = _get_xslt()

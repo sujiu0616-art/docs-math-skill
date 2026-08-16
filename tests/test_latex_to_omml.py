@@ -96,3 +96,37 @@ def test_lim_uses_limlow():
 def test_abs_left_right_ok():
     omml = _omml(r"\left|X(e^{j\omega})\right|")
     assert list(omml.iter(f"{{{M_NS}}}d"))
+
+
+ALIGNED_CASES = [
+    r"\begin{aligned} a &= b \\ c &= d \end{aligned}",
+    r"\begin{aligned} x^2 + y^2 &= 1 \\ 2x + 3y &= 5 \\ x - y &= 0 \end{aligned}",
+    r"\begin{aligned}[t] a &= b \\ c &= d \end{aligned}",
+    r"\begin{aligned} \sum_{n=0}^{\infty} a_n &= 1 \\ &= 2 \end{aligned}",
+    r"A + \begin{aligned} a &= b \\ c &= d \end{aligned} + B",
+    r"\begin{aligned} a &= \begin{aligned} x &= y \\ p &= q \end{aligned} \\ b &= c \end{aligned}",
+]
+
+
+@pytest.mark.parametrize("latex", ALIGNED_CASES)
+def test_aligned_converts(latex):
+    omml = latex_to_omml_fixed(latex)
+    assert omml is not None
+
+
+@pytest.mark.parametrize("latex", ALIGNED_CASES)
+def test_aligned_becomes_matrix(latex):
+    """aligned 必须转成 OMML m:m（多行对齐数组），且不残留裸 &。"""
+    from lxml import etree
+    omml = latex_to_omml_fixed(latex)
+    assert list(omml.iter(f"{{{M_NS}}}m")), "aligned 应转成 m:m 矩阵结构"
+    xml = etree.tostring(omml, encoding="unicode")
+    bare = xml.replace("&amp;", "").replace("&lt;", "").replace("&gt;", "")
+    assert "&" not in bare, "aligned 的 & 不能残留为普通字符"
+
+
+def test_plain_formula_unaffected_by_aligned_rewrite():
+    omml = _omml(r"\int_0^1 x^2 \, dx = \frac{1}{3}")
+    from lxml import etree
+    xml = etree.tostring(omml, encoding="unicode")
+    assert "array" not in xml and "\\begin{aligned}" not in xml

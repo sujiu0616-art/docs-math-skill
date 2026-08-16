@@ -91,6 +91,16 @@ def fix_integral_limits_and_lim(body):
 
 正文行内数学和展示公式使用同一套 OMML 规则。禁止 Unicode 凑角标、正体变量、ASCII `|` 代替绝对值。
 
+## aligned Environment Safety Rule
+
+禁止把 `\begin{aligned}...\end{aligned}` 直接喂给 latex2mathml：它不识别 aligned 环境，会把对齐符 `&` 当成普通字符输出成 `<mi>&</mi>`（裸 `&`，非法 XML），`etree.fromstring` 直接抛 `xmlParseEntityRef`，整条转换链崩溃。
+
+`latex_to_omml.py` 的 `_rewrite_aligned()` 已在入口做生成侧预处理：aligned → `array{rl}`（`&` 前右对齐、后左对齐，语义等价），latex2mathml 会把 array 正确转成 OMML `m:m`（多行对齐数组，Word 可双击编辑）。`[t]/[b]/[c]` 垂直位置参数 latex2mathml 不支持，安全剥离（仅丢失垂直位置，内容不变）。嵌套 aligned 递归处理。
+
+任何公式都必须走 `latex_to_omml` / `latex_to_omml_fixed_alt` 入口，不要绕过预处理直接调 `latex2mathml.converter.convert`。
+
+## Absolute Value Safety Rule
+
 ## Absolute Value Safety Rule
 
 Never generate `|x|` as plain text, and do not use `\|x\|` as an absolute-value workaround.

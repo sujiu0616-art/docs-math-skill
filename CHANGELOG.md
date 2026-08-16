@@ -1,5 +1,11 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.7.2
+
+- 修复 aligned 环境转换崩溃：latex2mathml 不识别 `aligned`，把对齐符 `&` 当普通字符输出成 `<mi>&</mi>`（裸 `&`，非法 XML），整条链在 etree 解析处崩溃。`latex_to_omml_alt` 入口新增 `_rewrite_aligned` 生成侧预处理：aligned → `array{rl}`（`&` 前右对齐、后左对齐，语义等价），latex2mathml 正确转成 OMML `m:m` 多行对齐数组；`[t]/[b]/[c]` 垂直参数安全剥离；嵌套 aligned 递归处理。
+- 回归测试新增 13 个 aligned 用例（两行/三行/单行/`[t]`/含求和/嵌套/前后内容/普通公式不误伤），共 107 用例全过。
+- `references/omml.md` 新增 aligned Safety Rule；SKILL.md Formula 规则补充。
+
 ## 2026-08-16 v2.7.1
 
 - 表格标题格式规则更新：表题（表N xxx）位于表格**下方**、**居中**、常规字体**不加粗**、不用黑体（latin=Times New Roman）。旧约定「表上方黑体加粗」作废。SKILL.md Styles 节与 `references/docx-style.md` Table 节同步。
