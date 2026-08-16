@@ -76,6 +76,8 @@ def check_academic(doc: Document) -> list[str]:
         east_ok = east == '宋体'
     if not east_ok:
         raise AssertionError('Normal eastAsia must be 宋体')
+    if rfonts is not None and (rfonts.get(qn('w:ascii')) != 'Times New Roman' or rfonts.get(qn('w:hAnsi')) != 'Times New Roman'):
+        raise AssertionError('Normal Latin/digits must be Times New Roman')
     checks.append('Normal font ok')
 
     for name, expected_cn in (('Heading 1', '黑体'), ('Heading 2', '黑体'), ('Heading 3', '黑体')):
@@ -86,11 +88,15 @@ def check_academic(doc: Document) -> list[str]:
         rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
         if rpr is None or rfonts is None or rfonts.get(qn('w:eastAsia')) != expected_cn:
             raise AssertionError(f'{name} eastAsia must be {expected_cn}')
+        if rfonts.get(qn('w:ascii')) != 'Times New Roman' or rfonts.get(qn('w:hAnsi')) != 'Times New Roman':
+            raise AssertionError(f'{name} Latin/digits must be Times New Roman')
         if name == 'Heading 2' and style.font.bold is not True:
             raise AssertionError('Heading 2 must be bold')
     checks.append('Heading fonts ok')
 
-    if 'Title' in doc.styles:
+    # 大标题检查：仅当文档实际使用了 Title 样式段落时生效；
+    # run 级大标题（普通段落 + run 字体）由生成脚本负责，不在此检查。
+    if any(p.style.name == 'Title' for p in doc.paragraphs):
         style = doc.styles['Title']
         rpr = style.element.find(qn('w:rPr'))
         rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None

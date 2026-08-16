@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.4.3
+
+- 西文与数字规则落地：validator 对 Normal 与 Heading 1-3 增加 `w:ascii`/`w:hAnsi` = Times New Roman 检查（规则原本已在 SKILL.md/docx-style.md）。
+- 修正 Title 检查：仅当文档实际使用 Title 样式段落时才检查 eastAsia=方正小标宋简体，run 级大标题不再误报。
+
 ## 2026-08-16 v2.4.2
 
 - 二级标题（Heading 2）规则明确为黑体加粗：SKILL.md 与 docx-style.md 补充规则，validator 对 Heading 2 增加 bold 检查。
