@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.5.1
+version: 2.7
 author: user
 last_update: 2026-08-16
 status: production
@@ -103,12 +103,11 @@ Lightweight smoke test (docx -> PDF -> extracted text probes; probes must match 
 python scripts/render_check.py out/input.docx 关键词1 关键词2
 ```
 
-Windows 下优先直接调用原生 `pdftoppm.exe`，不要依赖 `.cmd` shim（`.cmd` 包装器可能报 `The system cannot find the path specified`）：
+Windows 下优先直接调用原生 `pdftoppm.exe`，不要依赖 `.cmd` shim；`.cmd` 包装器在本环境会报 `The system cannot find the path specified`。
 
 ```powershell
-# 优先解析到原生 exe（跳过 .cmd 包装器）
-$exe = (Get-Command pdftoppm -ErrorAction SilentlyContinue).Source
-if ($exe -and -not $exe.EndsWith('.cmd')) {
+$exe = 'C:\Users\17685\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\poppler\Library\bin\pdftoppm.exe'
+if (Test-Path $exe) {
   & $exe -png -r 150 'out\input.pdf' 'out\page'
 } else {
   pdftoppm -png -r 150 'out\input.pdf' 'out\page'
@@ -116,11 +115,22 @@ if ($exe -and -not $exe.EndsWith('.cmd')) {
 Get-ChildItem 'out\page-*.png'
 ```
 
-Poppler 不在 PATH 时，可设置环境变量 `PDFTOPPM` 指向原生 `pdftoppm.exe`（`scripts/render_diff.py` 会读取）。
-
 ```bash
 python scripts/render_diff.py before.pdf after.pdf --dpi 150 --threshold 0.02
 ```
+
+## Auto-Learning（动态 skill）
+
+Skill 不是静态的：每次任务自动读经验、自动沉淀新经验，用户无需手动追加。
+
+- **任务开始前（自动读取）**：读取 `~/.config/math-doc/user-lessons.md`（路径可用 `python scripts/mathdoc_learn.py --path` 确认）。该文件存个人经验库（用户格式要求、踩坑、验证过的新语法），生成时必须遵循其中的条目，优先级：用户明确要求 > user-lessons 条目 > 内置默认规则。
+- **任务完成后（自动追加）**：若本次任务产生了新经验——踩坑（含根因/修复）、用户明确给出的格式要求、新验证通过的 LaTeX 语法——用 `mathdoc_learn.py --add` 自动追加，无需用户手动操作：
+
+  ```bash
+  python scripts/mathdoc_learn.py --add "教训一句话" --root-cause "根因" --fix "修复" --verify "验证" --task "项目名"
+  ```
+
+- 追加前用 `--list` 检查去重；经验文件在 skill 目录之外，`sync_install.sh` 不会覆盖；`references/lessons.md` 保持只读（内置通用经验），个人经验一律进 user-lessons.md。
 
 ## Failure Handling
 
@@ -140,6 +150,7 @@ Load the relevant reference before generating:
 - `references/validator.md`: validation levels, table grid checks, PDF rendering.
 - `references/performance.md`: formula cache, XSLT single-pass, global styles, deferred attach, batch validation.
 - `references/lessons.md`: 批量章节文档生成实战（公式预验证、渲染冒烟 probes、GBK 假警报、模板继承、逐章流水线）。
+- `~/.config/math-doc/user-lessons.md`: 个人经验库，任务开始前自动读取、完成后自动追加（见 Auto-Learning）。
 - `CHANGELOG.md`: version history and past failures.
 
 ## Scripts
@@ -152,12 +163,14 @@ Load the relevant reference before generating:
 - `scripts/formula_check.py`: batch-verify LaTeX formulas against latex_to_omml before generating.
 - `scripts/render_check.py`: lightweight render smoke test (LibreOffice -> PDF -> text probes).
 - `scripts/publish_report.py`: delivery report — validate a docx and write `validation-report.md` (equation count, checks, OMML engine), producing the source/result/report triplet.
+- `scripts/mathdoc_learn.py`: 动态 skill 经验管理 — `--add` 自动追加教训到个人经验库（自动带日期与问题/根因/修复/验证格式）、`--list` 查看、`--path` 定位。
 
 ```bash
 python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
 python scripts/validator.py proof.docx --level 2
 python scripts/formula_check.py --file new_formulas.txt
 python scripts/render_check.py doc.docx 定理 定义 性质
+python scripts/mathdoc_learn.py --add "本次教训" --root-cause "根因" --fix "修复" --verify "验证"
 python -m pytest tests/ -v
 ```
 
@@ -167,4 +180,6 @@ Default: plain visible text `(1)`, `(2)`, `(3)` with a right tab stop. Use SEQ f
 
 ## Reference Implementations
 
-Local reference implementations (files with machine-specific paths) are kept out of this public repository. See `CHANGELOG.md` for the history of fixes that informed the current pipeline.
+- C:/Users/17685/Documents/Codex/2026-07-26/yo-2/work/geo_proof.py
+- C:/Users/17685/Documents/Obsidian Vault/肯定codex的工作/Markdown→docx数学文档转换经验.md
+- C:/Users/17685/Documents/Obsidian Vault/肯定codex的工作/正文内联数学符号必须用OMML.md

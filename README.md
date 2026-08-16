@@ -19,6 +19,7 @@
 - **渲染验证**：像素 diff（`render_diff.py`）或轻量文本冒烟（`render_check.py`）
 - **回归测试**：22 个生产公式、91 个用例，CI 自动跑
 - **交付报告**：`publish_report.py` 输出公式数、校验项、引擎来源，可证明公式是原生 OMML
+- **动态经验沉淀**：每次任务自动读经验、完成后自动把踩坑和格式要求追加到个人经验库（`~/.config/math-doc/user-lessons.md`）——skill 越用越贴合你的习惯，用户不用手动维护
 
 ## 怎么验证（每条命令都能跑）
 
@@ -64,7 +65,7 @@ pip install -r math-doc/requirements.txt
 SKILL.md            skill 入口：用途、管线、强制规则、失败处理
 references/         样式规范、OMML 细节、markdown 解析、验证、性能、实战经验
 scripts/            latex_to_omml / omml_helpers / mathdoc_cli / validator /
-                    formula_check / render_check / render_diff / publish_report
+                    formula_check / render_check / render_diff / publish_report / mathdoc_learn
 tests/              回归测试：22 个生产公式 × 91 用例 + 无 Office 可跑的 MathML 测试
 examples/           4 份样例文档 + 复现脚本 + 交付报告示例
 ```

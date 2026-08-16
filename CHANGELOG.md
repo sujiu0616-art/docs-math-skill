@@ -1,5 +1,11 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.7
+
+- 动态 skill：新增 `scripts/mathdoc_learn.py`，任务完成自动把经验追加到个人经验库 `~/.config/math-doc/user-lessons.md`（自动带日期、问题/根因/修复/验证格式、同天合并、去重）；经验库在 skill 目录之外，`sync_install.sh` 不覆盖。
+- SKILL.md 新增 Auto-Learning 章节：任务开始前自动读取 user-lessons.md（优先级：用户明确要求 > 个人经验 > 内置默认规则），完成后自动追加新踩坑/用户格式要求/新验证语法，用户无需手动操作。
+- `references/lessons.md` 明确保持只读（内置通用经验），个人经验一律进 user-lessons.md。
+
 ## 2026-08-16 v2.6.1
 
 - 修复求和/连乘/积分 naryPr 结构：`fix_sum_limits` 归一化为参考结构 `chr + limLoc + grow + ctrlPr(Cambria Math)`（移除 MML2OMML.XSL 默认输出的 `subHide/supHide="off"`），与上下标渲染正确的参考文档一致。某些查看器对带 subHide/supHide 的 naryPr 会按侧边角标渲染求和上限。
