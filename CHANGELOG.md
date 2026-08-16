@@ -3,7 +3,7 @@
 ## 2026-08-16 v2.5.2
 
 - 新增 `tests/test_latex_to_omml.py` 回归测试：22 个生产公式（ch7-10 提取）× 4 项断言 + 3 个结构规则，91 用例全过；无 MML2OMML.XSL 时自动 skip。
-- 新增本地 `sync_install.sh`：一键镜像 `.zcode` → `.claude`（排除 `__pycache__`），防止手动复制漏文件。
+- 新增本地 `sync_install.sh`：一键镜像本地源安装到各 agent 安装目录（排除 `__pycache__`），防止手动复制漏文件。
 
 ## 2026-08-16 v2.5.1
 
