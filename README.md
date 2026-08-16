@@ -1,6 +1,6 @@
 # math-doc Skill
 
-A Claude Code / Codex / ZCode skill for generating professional mathematical documents (proofs, derivations, notes, formula-heavy reports) as `.docx`, LaTeX, or Markdown.
+A skill for generating professional mathematical documents (proofs, derivations, notes, formula-heavy reports) as `.docx`, LaTeX, or Markdown.
 
 ## Features
 
@@ -15,14 +15,7 @@ A Claude Code / Codex / ZCode skill for generating professional mathematical doc
 Copy (or symlink) the `math-doc` folder into your agent's skills directory:
 
 ```bash
-# Claude Code
-cp -r math-doc ~/.claude/skills/
-
-# Codex
-cp -r math-doc ~/.codex/skills/
-
-# ZCode
-cp -r math-doc ~/.zcode/skills/
+cp -r math-doc ~/<agent-skills-dir>/
 ```
 
 ## Dependencies
