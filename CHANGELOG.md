@@ -1,5 +1,9 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.5.3
+
+- 明确字体/排版规则的语义：SKILL.md 与 docx-style.md 标注为「用户未要求时的默认值」，用户明确指定格式时以用户为准，默认规则不覆盖用户格式。
+
 ## 2026-08-16 v2.5.2
 
 - 新增 `tests/test_latex_to_omml.py` 回归测试：22 个生产公式（ch7-10 提取）× 4 项断言 + 3 个结构规则，91 用例全过；无 MML2OMML.XSL 时自动 skip。
