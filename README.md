@@ -16,6 +16,7 @@ Copy (or symlink) the `math-doc` folder into your agent's skills directory:
 
 ```bash
 cp -r math-doc ~/<agent-skills-dir>/
+pip install -r math-doc/requirements.txt
 ```
 
 ## Dependencies

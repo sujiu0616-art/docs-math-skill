@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.5.1
+
+- `latex_to_omml.py` 本地点位改为环境变量 + 候选路径（`MATHDOC_MML2OMML` 优先，回退 Office 常用安装路径），与发布版一致，换机器不再需要改代码。
+- 新增 `requirements.txt` 依赖清单（latex2mathml、lxml、python-docx、pypdf、Pillow）。
+
 ## 2026-08-16 v2.5
 
 - 全面通用化：SKILL.md 描述与触发词不再枚举具体文档类型，任何数学 Word 文档需求（讲义、习题集、笔记、论文、报告）均可命中；Task Router 增加兜底路由，删除"复习清单"场景示例。
