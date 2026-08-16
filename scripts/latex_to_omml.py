@@ -21,6 +21,7 @@ MML2OMML_CANDIDATES = [
     r'C:\Program Files (x86)\Microsoft Office\root\Office16\MML2OMML.XSL',
 ]
 M_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
+W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
 _xslt = None
 
@@ -36,12 +37,12 @@ def _find_xsl():
 def _get_xslt():
     global _xslt
     if _xslt is None:
-        xsl_path = _find_xsl()
-        if not os.path.exists(xsl_path):
+        path = _find_xsl()
+        if not os.path.exists(path):
             raise FileNotFoundError(
-                f"MML2OMML.XSL not found; set MATHDOC_MML2OMML to its location (tried: {xsl_path})"
+                f"MML2OMML.XSL not found; set MATHDOC_MML2OMML to its path"
             )
-        _xslt = etree.XSLT(etree.parse(xsl_path))
+        _xslt = etree.XSLT(etree.parse(path))
     return _xslt
 
 
@@ -72,10 +73,30 @@ def mathml_to_omml_alt(mathml_elem, alttext=None):
     return omml
 
 
+def _narypr_cambria(naryPr):
+    """Normalize naryPr to the reference layout (verified above/below in Word/WPS):
+
+    remove subHide/supHide and append ctrlPr with Cambria Math.  MML2OMML.XSL always
+    emits subHide/supHide="off"; the reference document structure (which renders
+    above/below correctly) has ctrlPr and no subHide/supHide.
+    """
+    for tag in ('subHide', 'supHide'):
+        el = naryPr.find(f'{{{M_NS}}}{tag}')
+        if el is not None:
+            naryPr.remove(el)
+    if naryPr.find(f'{{{M_NS}}}ctrlPr') is None:
+        ctrl = etree.SubElement(naryPr, f'{{{M_NS}}}ctrlPr')
+        rpr = etree.SubElement(ctrl, f'{{{W_NS}}}rPr')
+        rfonts = etree.SubElement(rpr, f'{{{W_NS}}}rFonts')
+        rfonts.set(f'{{{W_NS}}}ascii', 'Cambria Math')
+        rfonts.set(f'{{{W_NS}}}hAnsi', 'Cambria Math')
+
+
 def fix_sum_limits(omml_el):
     """Fix n-ary limits by symbol: sum/product above/below, integral to the side.
 
-    Also replaces `lim_{...}` rendered as m:sSub with m:limLow.
+    Also normalizes naryPr to the reference structure (ctrlPr Cambria Math, no
+    subHide/supHide) and replaces `lim_{...}` rendered as m:sSub with m:limLow.
     """
     for naryPr in omml_el.findall(f'.//{{{M_NS}}}naryPr'):
         chr_el = naryPr.find(f'{{{M_NS}}}chr')
@@ -91,6 +112,7 @@ def fix_sum_limits(omml_el):
         else:
             ll = etree.SubElement(naryPr, f'{{{M_NS}}}limLoc')
             ll.set(f'{{{M_NS}}}val', value)
+        _narypr_cambria(naryPr)
 
     for ssub in list(omml_el.iter(f'{{{M_NS}}}sSub')):
         if not ''.join(ssub.itertext()).startswith('lim'):

@@ -44,6 +44,11 @@ LaTeX -> latex2mathml -> MathML -> MML2OMML.XSL -> OMML -> docx
 | 求和 `∑`、连乘 `∏` | 正上下方 | `limLoc="undOvr"` |
 | `lim` | `lim` 下方 | `m:limLow`，不用 `m:sSub` |
 
+naryPr 结构以参考文档（上下标渲染正确）为准：`chr + limLoc + grow + ctrlPr(Cambria Math)`。
+MML2OMML.XSL 会输出 `subHide/supHide="off"`，应移除并补上 ctrlPr——某些查看器对带
+subHide/supHide 的 naryPr 可能按侧边角标渲染。`scripts/latex_to_omml.py::fix_sum_limits`
+已做此归一化（`_narypr_cambria`）。
+
 ```python
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn

@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-08-16 v2.6.1
+
+- 修复求和/连乘/积分 naryPr 结构：`fix_sum_limits` 归一化为参考结构 `chr + limLoc + grow + ctrlPr(Cambria Math)`（移除 MML2OMML.XSL 默认输出的 `subHide/supHide="off"`），与上下标渲染正确的参考文档一致。某些查看器对带 subHide/supHide 的 naryPr 会按侧边角标渲染求和上限。
+- `references/omml.md` 补充 naryPr 参考结构说明；examples 全部重新生成并通过 validator --level 2、render_check 与 94 个回归用例。
+
 ## 2026-08-16 v2.6
 
 - 新增 `scripts/publish_report.py` 交付报告：对生成的 docx 跑 validator 并输出 `validation-report.md`（公式数、校验项、OMML 引擎来源），构成 source/result/report 三件套，可证明公式是原生 OMML。
