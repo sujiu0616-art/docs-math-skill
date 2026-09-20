@@ -1,5 +1,42 @@
 # math-doc Skill Changelog
 
+## 2026-09-20 v2.8.0 — 整理轮：修缺陷、去重复、打通同步
+
+本轮以「清理 + 修缺陷 + 结构去重」为目标，不新增能力；对外接口保持兼容。
+
+**修复的真实缺陷**
+
+- `validator.py`：回流代码块豁免（此前滞留在 `.agents` 副本，是唯一产生功能分叉的改动）。含 Consolas 代码块（正文里带 `**`/`$`/首尾空格）的文档不再被误判为 markdown 残留。
+- `publish_report.py`：`_find_xsl()` 不抛异常且返回值被丢弃，导致「OMML 引擎来源」可能在引擎缺失时照样写 "local Office installation"。改为真实编译一次 XSLT 作为探测；引擎不可用时报告如实标注并警告其不能作为「公式是原生 OMML」的证据。
+- `publish_report.py`：报告产物名硬编码 `source.md`，与 `--source` 传入的实际文件名矛盾；失败路径直接退出、报告恒为 PASS。现在按实际文件名写入，且**失败也会产出报告**（结论 FAIL + 失败原因）。
+- `render_diff.py`：`--out` 解析后从未使用，差异图不落盘 —— 现在真正写出放大的逐页差异图，供人眼复核 DIFF 判定。
+- `render_check.py`：`check()` 直接读 `sys.argv`，无法作为模块调用；中间 PDF 会写进用户文档目录。现在 `check(docx, probes, keep_pdf=False)` 接受参数，PDF 默认写临时目录（`--keep-pdf` 可保留），转换失败返回退出码 2 而不是抛栈。
+- `render_check.py` / `render_diff.py`：外部工具改为「环境变量 → PATH → 常见安装路径」解析（`specs.find_soffice` / `specs.find_pdftoppm`），并自动跳过 Windows 上会报「找不到路径」的 `.cmd` 包装器。
+- `formula_check.py`：删除未使用的 `HERE`；`open()` 补上下文管理。
+- `omml_helpers.py`：删除与 `FONT_CN` 同值的冗余常量 `FONT_CN_FALLBACK`。
+- `latex_to_omml.py` / XSLT：XML 解析显式关闭外部实体与网络访问（XXE 防护）。
+
+**结构去重**
+
+- 新增 `scripts/specs.py` 零依赖叶子模块，收纳两侧共用的事实：`NARY_LIM_LOC`（此前生成侧与校验侧各写一份字面量）、`FONT_*` 字体名（此前散在 `mathdoc_cli`、`omml_helpers` 与 validator 的裸字符串）、表头底纹、页面预设、外部工具定位。
+- `latex_to_omml` 四个入口收敛为 `latex_to_omml(latex, alttext=None, fix_limits=True)`，旧名 `latex_to_omml_alt/_fixed/_fixed_alt` 保留为等价别名 —— 文档反复警告「必须走 `_fixed_alt`」正是入口过多的症状。
+- `fix_sum_limits` 的 limLow 构造改为复用 `omml_helpers.mlim`；`publish_report` 的公式计数改为复用 `validator.collect_stats`。
+
+**文档订正**
+
+- `references/omml.md`：删除重复的 `## Absolute Value Safety Rule` 标题。
+- `references/docx-style.md`：三套互相矛盾的字号统一为 16/13/12（与 `mathdoc_cli.py` 实际取值一致），修正 H3 颜色（深蓝 `#1F4D78` 而非标题蓝），页边距与页面预设改写为与代码一致，并标明 A4/2.1cm 属部分项目习惯、有 baseline 时以 baseline 为准。
+- `references/lessons.md`：删除把裸 `|z|` 列为「验证通过的语法」的表述（与绝对值守则冲突），补上它作为反面样本的说明；n-ary 限位一节补记「limLoc 在行内公式里不一定被遵守」这一实测边界，避免把 naryPr 归一化当成已完全解决。
+- `references/performance.md`：示例引用了不存在的 `mathml_to_omml.xsl` 且函数名遮蔽真实入口，改为反映 `_get_xslt()` 单次编译 + 缓存的真实模式。
+- `references/validator.md`：补代码块豁免与 `\left(...\right)` 内以正负号开头（`\left({-}x\right)`）这两个 `empty m:e` 来源；补字体断言以 `specs.py` 为准、项目基线另有约定时不适用的说明；PDF 段改为指向脚本而非硬编码路径。
+- `SKILL.md`：删除硬编码的个人机器路径与三条指向个人目录的「Reference Implementations」；渲染段改为工具定位说明；与 references 逐字重复的细则改为指路。
+
+**同步与清理**
+
+- `sync_install.sh` 纳入仓库并重写：源改为**仓库自身**（此前把某个安装目录当源头，导致仓库的通用化修复同步不进来），目标覆盖本机实际存在的 4 个安装位置（含此前遗漏的 `.agents` —— 正是分叉根因），同步时清理 `__pycache__` 与 `.pytest_cache`，支持 `--dry-run`。
+- `.gitignore` 补 `.pytest_cache/`；删除 `examples/paper.pdf`（无人引用，且已被 `.gitignore` 忽略）。
+- README 用例数订正为 107（此前 91/94/107 三处不一致）。
+
 ## 2026-08-16 v2.7.2
 
 - 修复 aligned 环境转换崩溃：latex2mathml 不识别 `aligned`，把对齐符 `&` 当普通字符输出成 `<mi>&</mi>`（裸 `&`，非法 XML），整条链在 etree 解析处崩溃。`latex_to_omml_alt` 入口新增 `_rewrite_aligned` 生成侧预处理：aligned → `array{rl}`（`&` 前右对齐、后左对齐，语义等价），latex2mathml 正确转成 OMML `m:m` 多行对齐数组；`[t]/[b]/[c]` 垂直参数安全剥离；嵌套 aligned 递归处理。

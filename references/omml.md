@@ -101,8 +101,6 @@ def fix_integral_limits_and_lim(body):
 
 ## Absolute Value Safety Rule
 
-## Absolute Value Safety Rule
-
 Never generate `|x|` as plain text, and do not use `\|x\|` as an absolute-value workaround.
 
 This is a generation-side safety rule, not only a validator backstop. The generator must prevent bare `|...|` before it reaches latex2mathml.

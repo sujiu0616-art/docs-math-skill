@@ -38,16 +38,24 @@ python scripts/render_diff.py before.pdf after.pdf --dpi 150 --threshold 0.02
 
 ## Core Checks
 
+- **代码块豁免**：Consolas 字体的段落视为代码块，其中的 `**`/`$`/首尾空格不计为 markdown 残留 —— 代码块是逐字引用的源程序。
 - `body.xpath('.//m:e[not(node())]')` 必须为空。
 - 积分 `limLoc=subSup`；求和/连乘 `limLoc=undOvr`；`lim` 必须是 `m:limLow`。
 - 文本 run 中不能有 `**`；CJK 上下文中出现可疑 `$` 要报错。
-- `w:t` 不能有首尾空格。
+- `w:t` 不能有首尾空格（代码块除外）。
 - Normal eastAsia 必须是 `宋体`；Heading eastAsia 是 `黑体`；Latin/digits 是 Times New Roman。
+  **字体名以 `scripts/specs.py` 的 `FONT_*` 常量为准**，validator 与生成侧共用同一份常量。
+  若项目以既有 docx 作样式基线且基线另有约定（例如正文用方正小标宋简体），以基线为准，
+  此时该断言不适用 —— 改用 level 1，或自行核对基线字体。
 - `w:tblGrid/gridCol` 数量和宽度必须匹配；只设 `cell.width` 不够。
-- 表头行有 `tblHeader`、`cantSplit`；表头单元格有 `shd E8EEF5`；所有单元格 `vAlign=center`。
+- 表头行有 `tblHeader`、`cantSplit`；表头单元格有 `shd E8EEF5`（常量 `specs.TABLE_HEADER_FILL`）；所有单元格 `vAlign=center`。
 - LibreOffice 可用时转 PDF 检查；没有渲染工具时明确说明“渲染未验证”。
 
 `empty m:e` 最常见来源是裸 `|...|` 绝对值公式，例如 `|X(jω)|²`。先查这类公式并改成 `\left|...\right|`，再重新生成和校验。
+
+另一个已知来源：`\left(...\right)` 内部以正负号开头（`\left(-x\right)`、`\left(-j\omega\right)`）。
+latex2mathml 会把开头的 `+`/`-` 解析成独立的运算符节点，其 `m:e` 落在定界符对象之外成为空元素。
+生成侧用花括号把该符号包成序数原子即可：`\left({-}x\right)`。
 
 Heading 样式必须显式存在 `w:rPr/w:rFonts` 且 `eastAsia=黑体`；只给标题 run 设黑体但样式本身缺失时仍会失败。
 
@@ -75,18 +83,17 @@ def check_table_grid(doc, expected_per_table):
 soffice --headless --convert-to pdf --outdir out input.docx
 ```
 
-Windows 下不要默认使用 `pdftoppm`，因为它可能解析到 `.cmd` 包装器并报“找不到路径”。优先直接调用原生 exe：
+工具定位与像素 diff 统一由脚本处理，不要在文档里写死本机路径：
 
-```powershell
-# 优先解析到原生 exe（跳过 .cmd 包装器），或设置 $env:PDFTOPPM 指向原生 exe
-$exe = $env:PDFTOPPM
-if (-not $exe) { $exe = (Get-Command pdftoppm -ErrorAction SilentlyContinue).Source }
-if ($exe -and -not $exe.EndsWith('.cmd')) {
-  & $exe -png -r 150 'out\input.pdf' 'out\page'
-} else {
-  pdftoppm -png -r 150 'out\input.pdf' 'out\page'
-}
-Get-ChildItem 'out\page-*.png'
+```bash
+python scripts/render_check.py out/input.docx 关键词1 关键词2   # 文本冒烟（PDF 写临时目录）
+python scripts/render_diff.py before.pdf after.pdf --out out/    # 像素 diff，差异图落盘
 ```
+
+两者都按「环境变量 → PATH → 常见安装路径」定位外部工具（`specs.find_soffice` /
+`specs.find_pdftoppm`），可用 `MATHDOC_SOFFICE` / `PDFTOPPM` 覆盖。
+
+Windows 上**必须指向原生 `pdftoppm.exe`**，不要用 `.cmd` 包装器 —— 本环境会报
+“找不到路径”。`specs.find_pdftoppm` 已自动跳过 `.cmd` / `.bat`。
 
 如果只改公式，优先裁剪公式所在区域再 diff，避免正文排版噪声影响判断。

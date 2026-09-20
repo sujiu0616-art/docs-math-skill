@@ -1,9 +1,9 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.7.2
+version: 2.8.0
 author: user
-last_update: 2026-08-16
+last_update: 2026-09-20
 status: production
 ---
 
@@ -63,63 +63,45 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 ### Formula
 
 - Use `latex2mathml -> OMML` for all math.
+- **单一入口 `latex_to_omml(latex, alttext=None, fix_limits=True)`**：默认已完成 aligned 改写、n-ary 限位与 naryPr 归一化。不要绕过它直接调 `latex2mathml.converter.convert`，也不要手写 limLoc 修补。
 - Never use Unicode composed subscripts/superscripts, plain text formulas, upright variables, or `|x|` as plain text for absolute value.
 - LaTeX 绝对值/范数必须写 `\left|...\right|`；独立公式里的裸 `|X|^2` 会被 latex2mathml 解析成空 `m:e`。手动构造 OMML 时用 `mabs` 分隔符结构。
-- Integral `∫`: `limLoc="subSup"`.
-- Summation `∑` / product `∏`: `limLoc="undOvr"`.
-- `lim`: `m:limLow`, not `m:sSub`.
-- `aligned` 环境禁止直接喂 latex2mathml（会产出裸 `&` 崩溃）；入口 `latex_to_omml` 已自动改写为 `array{rl}` → OMML `m:m`。所有公式必须走该入口，不要绕过。
-- Handle `\underbrace` and `mstyle` per `references/omml.md`.
+- 大算符限位：`∫` 用 `limLoc="subSup"`，`∑`/`∏` 用 `limLoc="undOvr"`（规则表在 `specs.NARY_LIM_LOC`，validator 用同一份断言）；`lim` 用 `m:limLow`，不用 `m:sSub`。
+- 限位的已知边界与结构级改法、`\underbrace` 与 `mstyle` 的处理，见 `references/omml.md`。
 
 ### Styles
 
 以下字体/排版规则均为**用户未要求时的默认值**：用户明确指定格式（字体、字号、颜色、间距、对齐等）时，以用户要求为准，默认规则不得覆盖用户格式。
 
-- Modify global styles once via `doc.styles`; do not write font attributes per run.
-- Chinese headings: 黑体. Heading 2（二级标题）必须黑体加粗. Chinese body: 宋体. Title/大标题（文档首行）: 方正小标宋简体.
-- Latin/digits: Times New Roman. Formula font: leave compatible default.
-- Heading 1-3 样式级必须显式设置 `eastAsia=黑体`；只设置标题 run 字体不足以通过 validator。
-- 表格标题（表N xxx）：在表格**下方**居中，常规字体**不加粗**、不用黑体（latin=Times New Roman），space_before 4 / space_after 6。用户格式要求，默认即此格式，旧「表上方黑体加粗」不再使用。
+- 字体名以 `scripts/specs.py` 的 `FONT_*` 为单一真相源：正文宋体、标题黑体（Heading 2 必须加粗）、大标题方正小标宋简体、拉丁 Times New Roman。样式级必须显式设 `eastAsia`，只设 run 字体不足以通过 validator。
+- 通过 `doc.styles` 设置一次，不逐 run 写字体。
+- 表格标题（表N xxx）：表格**下方**居中、常规字体不加粗、不用黑体，space_before 4 / space_after 6。
+- 字号、页边距、表格几何、列宽算法、对齐规则见 `references/docx-style.md`。
 - No decorative literal spaces. Strip text segments, no spaces around `=`/`+`/`-`; minus sign U+2212.
 
 ### Validation
 
 - BEFORE generation: batch-verify all formulas new to this document with `scripts/formula_check.py` (0 failures before writing the generator).
 - After generation, run `scripts/validator.py` on the saved `.docx`.
-- Level 1: basic open/equation/markdown residue checks.
-- Level 2: academic font/table checks.
-- Level 3: publication checks plus PDF render when available.
-- LibreOffice/Poppler unavailable: explicitly state `渲染未验证`.
+- Level 1: basic open/equation/markdown residue checks（含代码块豁免：Consolas 段落里的 `**`/`$` 不判残留）。
+- Level 2: academic font/table checks. Level 3: publication checks plus page size.
+- **level 2 的字体断言以 `specs.py` 默认值为准**。若项目以既有 docx 作样式基线且基线另有约定，以基线为准，此时该断言不适用 —— 详见 `references/validator.md`。
+- LibreOffice/Poppler unavailable: explicitly state `渲染未验证`。
 
 ### Rendering
 
-For visual QA:
+外部工具按「环境变量 → PATH → 常见安装路径」定位（实现在 `specs.find_soffice` / `specs.find_pdftoppm`），不要写死本机路径：
+
+- LibreOffice：`MATHDOC_SOFFICE` 覆盖，否则查 `soffice` / 常见安装目录。
+- poppler：`PDFTOPPM` 覆盖，否则查 PATH。Windows 上**必须指向原生 `pdftoppm.exe`**，不要用 `.cmd` 包装器（本环境会报 `The system cannot find the path specified`）。
 
 ```bash
-soffice --headless --convert-to pdf --outdir out input.docx
+soffice --headless --convert-to pdf --outdir out input.docx           # 渲染 PDF
+python scripts/render_check.py out/input.docx 关键词1 关键词2           # 文本冒烟
+python scripts/render_diff.py before.pdf after.pdf --out out/           # 像素 diff（--out 落盘差异图）
 ```
 
-Lightweight smoke test (docx -> PDF -> extracted text probes; probes must match document wording byte-for-byte, spaces included):
-
-```bash
-python scripts/render_check.py out/input.docx 关键词1 关键词2
-```
-
-Windows 下优先直接调用原生 `pdftoppm.exe`，不要依赖 `.cmd` shim；`.cmd` 包装器在本环境会报 `The system cannot find the path specified`。
-
-```powershell
-$exe = 'C:\Users\17685\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\poppler\Library\bin\pdftoppm.exe'
-if (Test-Path $exe) {
-  & $exe -png -r 150 'out\input.pdf' 'out\page'
-} else {
-  pdftoppm -png -r 150 'out\input.pdf' 'out\page'
-}
-Get-ChildItem 'out\page-*.png'
-```
-
-```bash
-python scripts/render_diff.py before.pdf after.pdf --dpi 150 --threshold 0.02
-```
+`render_check` 的 probe 必须与文档措辞**逐字节一致**（含空格）；中间 PDF 默认写临时目录，需要保留时加 `--keep-pdf`。
 
 ## Auto-Learning（动态 skill）
 
@@ -157,11 +139,12 @@ Load the relevant reference before generating:
 
 ## Scripts
 
-- `scripts/latex_to_omml.py`: LaTeX -> OMML pipeline.
-- `scripts/omml_helpers.py`: OMML builders for mixed paragraphs, sums, limits, absolute values.
+- `scripts/specs.py`: 共享常量与外部工具定位（`NARY_LIM_LOC`、`FONT_*`、`find_soffice`、`find_pdftoppm`）。零依赖叶子模块，生成侧与校验侧共用。
+- `scripts/latex_to_omml.py`: LaTeX -> OMML 管线。入口 `latex_to_omml`，旧名 `latex_to_omml_alt/_fixed/_fixed_alt` 保留为等价别名。
+- `scripts/omml_helpers.py`: 手工 OMML builder（`mpara_mix`、`mnary`、`mlim`、`mabs` 等），供 latex2mathml 表达不了的边缘公式。
 - `scripts/mathdoc_cli.py`: `--template proof|notes|derivation` skeleton generator.
 - `scripts/validator.py`: post-generation .docx validator with `--level 1|2|3`.
-- `scripts/render_diff.py`: pixel diff between rendered PDFs.
+- `scripts/render_diff.py`: pixel diff between rendered PDFs（`--out` 写差异图）。
 - `scripts/formula_check.py`: batch-verify LaTeX formulas against latex_to_omml before generating.
 - `scripts/render_check.py`: lightweight render smoke test (LibreOffice -> PDF -> text probes).
 - `scripts/publish_report.py`: delivery report — validate a docx and write `validation-report.md` (equation count, checks, OMML engine), producing the source/result/report triplet.
@@ -179,9 +162,3 @@ python -m pytest tests/ -v
 ## Equation Numbering
 
 Default: plain visible text `(1)`, `(2)`, `(3)` with a right tab stop. Use SEQ fields only when the document needs cross-references, and warn that Word requires Ctrl+A F9 to refresh.
-
-## Reference Implementations
-
-- C:/Users/17685/Documents/Codex/2026-07-26/yo-2/work/geo_proof.py
-- C:/Users/17685/Documents/Obsidian Vault/肯定codex的工作/Markdown→docx数学文档转换经验.md
-- C:/Users/17685/Documents/Obsidian Vault/肯定codex的工作/正文内联数学符号必须用OMML.md

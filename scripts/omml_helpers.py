@@ -9,15 +9,20 @@ Usage:
     doc.save("out.docx")
 """
 import copy
+import sys
+from pathlib import Path
+
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, Inches
 
-FONT_CN = '宋体'        # SimSun
-FONT_CN_FALLBACK = '宋体'        # SimSun fallback
-FONT_HEADING_CN = '黑体'          # SimHei
-FONT_MATH = 'Times New Roman'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from specs import FONT_BODY_CN, FONT_HEADING_CN, FONT_LATIN  # noqa: E402
+
+# 字体名统一取自 specs，与 validator 的断言同源。
+FONT_CN = FONT_BODY_CN        # SimSun
+FONT_MATH = FONT_LATIN
 
 
 # ===== Element factory =====

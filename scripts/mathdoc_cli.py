@@ -14,12 +14,21 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from latex_to_omml import latex_to_omml_fixed_alt
+from latex_to_omml import latex_to_omml  # noqa: E402
+from specs import (  # noqa: E402
+    FONT_BODY_CN,
+    FONT_HEADING_CN,
+    FONT_LATIN,
+    FONT_TITLE_CN,
+    PAGE_HEIGHT_IN,
+    PAGE_WIDTH_IN,
+)
 
-BODY_CN = '宋体'
-HEADING_CN = '黑体'
-TITLE_CN = '方正小标宋简体'
-LATIN = 'Times New Roman'
+# 字体名取自 specs，与 validator 的断言同源。
+BODY_CN = FONT_BODY_CN
+HEADING_CN = FONT_HEADING_CN
+TITLE_CN = FONT_TITLE_CN
+LATIN = FONT_LATIN
 BLUE = RGBColor(0x2E, 0x74, 0xB5)
 DARK = RGBColor(0x1F, 0x4D, 0x78)
 GRAY = RGBColor(0x59, 0x59, 0x59)
@@ -109,7 +118,7 @@ def add_numbered_equation(doc, latex, alttext=None, counter=None):
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(4)
     p.paragraph_format.space_after = Pt(6)
-    omml = latex_to_omml_fixed_alt(latex, alttext)
+    omml = latex_to_omml(latex, alttext)
     p._element.append(copy.deepcopy(omml))
     p.paragraph_format.tab_stops.add_tab_stop(Inches(6.0), WD_TAB_ALIGNMENT.RIGHT)
     run = p.add_run('\t' + f'({counter[0]})')
@@ -121,8 +130,8 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     cfg = TEMPLATES[template_name]
     doc = Document()
     section = doc.sections[0]
-    section.page_width = Inches(8.5)
-    section.page_height = Inches(11)
+    section.page_width = Inches(PAGE_WIDTH_IN)
+    section.page_height = Inches(PAGE_HEIGHT_IN)
     section.left_margin = Inches(1)
     section.right_margin = Inches(1)
     section.top_margin = Inches(0.8)

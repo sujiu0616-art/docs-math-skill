@@ -4,14 +4,15 @@
 
 ## 1. 生成前：公式批量预验证（新增工具 formula_check.py）
 
-- 问题：`latex_to_omml` 的兼容性边界未知。新章节会用到未验证过的 LaTeX 语法（`|z|`、`\oint`、`\tilde{X}`、`z^{-n_0}`、`\ast` 等），生成中途报错或产出坏公式时难定位。
+- 问题：`latex_to_omml` 的兼容性边界未知。新章节会用到未验证过的 LaTeX 语法（`\oint`、`\tilde{X}`、`z^{-n_0}`、`\ast`、`\supseteq` 等），生成中途报错或产出坏公式时难定位。
 - 解决：写生成脚本前先跑 `scripts/formula_check.py` 批量验证全部新公式，0 failures 再动笔。
-- 本次验证通过的新语法（30 个公式全过）：`\sum` 带上下限、`\frac`、`\oint`、`|z|`、`\tilde{X}`、`\lim_{z\rightarrow\infty}`、`z^{-n_0}`、`z^{-1}`、`\ast`、`\mathrm`、`\supseteq`、`\leftrightarrow`、`e^{-j\omega_{0}}`、方括号 `[...]` 中的 `\cos` 项。`\sum`/`\lim` 上下限需要 `fix_sum_limits` 后处理。
+- 本次验证通过的新语法：`\sum` 带上下限、`\frac`、`\oint`、`\tilde{X}`、`\lim_{z\rightarrow\infty}`、`z^{-n_0}`、`z^{-1}`、`\ast`、`\mathrm`、`\supseteq`、`\leftrightarrow`、`e^{-j\omega_{0}}`、方括号 `[...]` 中的 `\cos` 项。
+- 反面样本：当时清单里出现的裸 `|z|` **不要照抄**。绝对值必须写 `\left|...\right|`；裸 `|z|` 会产出空 `m:e`，validator 直接判 FAIL（见 `references/omml.md` 的 Absolute Value Safety Rule）。`\sum`/`\lim` 的上下限归一化由入口 `latex_to_omml` 内置，无需手工调用。
 - 经验：新内容先过一遍公式清单，是最便宜的验证点；FAIL 时换等价写法（如绝对值改 `\left|...\right|`），而不是绕过转换器用 Unicode。
 
 ## 2. 内联公式与文字混排
 
-- 高频需求：同一段落里「文字 + 粗体 + 内联 OMML」混排（如"**性质**：绝对值恒有 `|z|\ge 0`"）。
+- 高频需求：同一段落里「文字 + 粗体 + 内联 OMML」混排（如"**性质**：绝对值恒有 `\left|z\right|\ge 0`"）。
 - 实现：python-docx 中 `p._element.append(omml(latex))` 即可把 OMML 内联进普通段落；独立公式才用独占一行。`omml_helpers.py` 的 `mpara/mrn/mnary` 是底层积木，本项目用 `latex_to_omml + append` 更省事。
 - 经验：混排段保持行距一致（1.25）、公式基线自动对齐；不要在混排段里塞整段居中。
 
@@ -50,12 +51,14 @@
 
 固定八步：读原文 dump → 提取章节结构 → 翻译原表格 → 写生成脚本 → 生成 → 验证 → 渲染冒烟 → 清理临时 PDF。脚本间复制改参（mapping 表 + 性质表 + 变换对表 + 对比表），验证通过率从第一章稳定到最后一章。
 
-## 8. naryPr 结构差异导致求和上下限变角标（2026-08-16）
+## 8. 大算符上下限：limLoc 不够（2026-08-16，含 2026-09 修正）
 
 - 现象：同一查看器里，一份文档的 ∑ 上下标正确，另一份变成侧边角标；两份的 `limLoc` 都是 `undOvr`，XML 断言全过。
-- 根因：naryPr 结构不同。MML2OMML.XSL 输出的 naryPr 恒带 `subHide/supHide="off"` 且无 `ctrlPr`；手动构造的参考文档是 `ctrlPr`(Cambria Math) 且无 `subHide/supHide`。查看器对两种结构渲染不同。
-- 解决：`fix_sum_limits` 增加 naryPr 归一化（`_narypr_cambria`）：移除 `subHide/supHide`、追加 `ctrlPr` Cambria Math，统一成参考结构。所有公式入口（`latex_to_omml_fixed_alt`）一律走它，不要在生成脚本里另写 limLoc 修补函数。
-- 教训：`limLoc=undOvr` 正确 ≠ 渲染正确；校验要看 naryPr 完整结构；生成脚本里复制粘贴"补 limLoc"的逻辑会漂移成第二条链，改一处必须全局收敛。
+- 根因：naryPr 结构不同 —— MML2OMML.XSL 输出的 naryPr 恒带 `subHide/supHide="off"` 且无 `ctrlPr`；参考文档是 `ctrlPr`(Cambria Math) 且无 `subHide/supHide`；查看器对两种结构渲染不同。
+- skill 侧的做法：`fix_sum_limits` 做 naryPr 归一化（`_narypr_cambria`），并把 `lim_{...}` 的 `m:sSub` 改写为 `m:limLow`。入口 `latex_to_omml` 内置这一步。
+- 已知的边界（**实测补充，勿当成已解决**）：`limLoc=undOvr` 在**行内**公式里不一定被遵守，Word 仍可能排成侧边角标。若文档对限位要求严格，生成侧需自行把单侧/无限限的 n-ary 结构级改写成 `m:limUpp(m:limLow(算子, 下限), 上限)` —— 该结构没有"空槽"概念，Word 只能叠排；同时 `\sum` 源码要写全上下限（`\sum_{k=0}^{n}`），只写 `\sum_j` 会让 Word 为缺的一侧画虚线占位框。
+- 验证手段：LibreOffice 渲染后按 **y 坐标**判断是否叠排 —— 算子、上限、下限三者在同一 x 附近纵向依次排列即为叠排成功；若三者 y 相同、x 递增则是角标。这是不看图就能判定版式的办法。
+- 教训：**XML 属性正确 ≠ Word 渲染正确**。凡是 Word 有自己排版启发式的结构（n-ary 限位、分数、根式），要么用结构强制，要么渲染后按坐标实测。生成脚本里复制粘贴"补 limLoc"的逻辑会漂移成第二条链，改一处必须全局收敛 —— 这也是现在只保留 `latex_to_omml` 单一入口的原因。
 
 ## 与 skill 现有能力的关系
 

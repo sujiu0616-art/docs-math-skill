@@ -1,19 +1,26 @@
-"""
-LaTeX → MathML → OMML pipeline using Microsoft's MML2OMML.XSL.
+"""LaTeX → MathML → OMML pipeline using Microsoft's MML2OMML.XSL.
 
 Prerequisites:
     pip install latex2mathml
-    
+
 Usage:
-    from latex_to_omml import latex_to_omml, fix_sum_limits
+    from latex_to_omml import latex_to_omml
     omml = latex_to_omml(r'\\sum_{n=0}^{\\infty} n\\alpha^n = \\frac{\\alpha}{(1-\\alpha)^2}')
-    omml = fix_sum_limits(omml)  # Ensure limits are above/below
     p._element.append(omml)
+
+``latex_to_omml`` 是唯一入口，默认已完成两件预处理：aligned 环境改写、
+n-ary 上下限与 naryPr 归一化。文档里"必须走入口、不要绕过"指的就是它——
+不要直接调 ``latex2mathml.converter.convert``，也不要绕过 XSLT 自己拼 OMML。
 """
+from __future__ import annotations
+
+import os
 
 import latex2mathml.converter
 from lxml import etree
-import os
+
+from omml_helpers import mlim
+from specs import expected_lim_loc
 
 # Locate MML2OMML.XSL: env var MATHDOC_MML2OMML overrides, else common Office paths.
 MML2OMML_CANDIDATES = [
@@ -25,6 +32,17 @@ W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
 _xslt = None
 
+
+def _xml_parser():
+    """不解析外部实体、不联网的 XML 解析器。
+
+    MathML 文本由 latex2mathml 生成，XSL 来自本机 Office 安装；两者都不该被
+    当成可信 XML 直接解析 —— 关掉实体解析与网络访问，避免 XXE（读本地文件 /
+    发起请求）这类由输入内容触发的副作用。
+    """
+    return etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+
+
 def _find_xsl():
     env = os.environ.get('MATHDOC_MML2OMML')
     if env:
@@ -34,7 +52,9 @@ def _find_xsl():
             return cand
     return MML2OMML_CANDIDATES[0]
 
+
 def _get_xslt():
+    """编译并缓存 XSLT。XSL 缺失时在这里抛异常 —— 这是"引擎可用性"的真实探测点。"""
     global _xslt
     if _xslt is None:
         path = _find_xsl()
@@ -42,13 +62,8 @@ def _get_xslt():
             raise FileNotFoundError(
                 f"MML2OMML.XSL not found; set MATHDOC_MML2OMML to its path"
             )
-        _xslt = etree.XSLT(etree.parse(path))
+        _xslt = etree.XSLT(etree.parse(path, parser=_xml_parser()))
     return _xslt
-
-
-def latex_to_omml(latex_str):
-    """Convert LaTeX string to OMML oMath element."""
-    return latex_to_omml_alt(latex_str)
 
 
 def _rewrite_aligned(latex):
@@ -100,29 +115,6 @@ def _rewrite_aligned(latex):
         pos = matched + len(r'\end{aligned}')
 
 
-def latex_to_omml_alt(latex_str, alttext=None):
-    """Convert LaTeX to OMML and optionally preserve alttext on the oMath root."""
-    latex_str = _rewrite_aligned(latex_str)
-    mathml = latex2mathml.converter.convert(latex_str)
-    tree = etree.fromstring(mathml.encode())
-    xslt = _get_xslt()
-    omml = xslt(tree).getroot()
-    if alttext:
-        omml.set('alttext', alttext)
-    return omml
-
-
-def mathml_to_omml_alt(mathml_elem, alttext=None):
-    """Convert a MathML element to OMML, preserving MathML alttext when present."""
-    xslt = _get_xslt()
-    omml = xslt(mathml_elem).getroot()
-    if alttext is None:
-        alttext = mathml_elem.get('alttext')
-    if alttext:
-        omml.set('alttext', alttext)
-    return omml
-
-
 def _narypr_cambria(naryPr):
     """Normalize naryPr to the reference layout (verified above/below in Word/WPS):
 
@@ -143,17 +135,17 @@ def _narypr_cambria(naryPr):
 
 
 def fix_sum_limits(omml_el):
-    """Fix n-ary limits by symbol: sum/product above/below, integral to the side.
+    """归一化大算符的上下限：∑/∏ 叠排、∫ 走侧边角标，并把 lim 从 sSub 改成 limLow。
 
-    Also normalizes naryPr to the reference structure (ctrlPr Cambria Math, no
-    subHide/supHide) and replaces `lim_{...}` rendered as m:sSub with m:limLow.
+    限位规则取自 ``specs.NARY_LIM_LOC``（校验侧用同一份表断言）。``lim_{...}``
+    在 latex2mathml 里会产出 ``m:sSub``，这里整体改写成 ``m:limLow``——复用
+    ``omml_helpers.mlim``，两处不会各写一份结构而漂移。
     """
     for naryPr in omml_el.findall(f'.//{{{M_NS}}}naryPr'):
         chr_el = naryPr.find(f'{{{M_NS}}}chr')
         if chr_el is None:
             continue
-        op = chr_el.get(f'{{{M_NS}}}val')
-        value = 'undOvr' if op in ('∑', '∏') else 'subSup' if op == '∫' else None
+        value = expected_lim_loc(chr_el.get(f'{{{M_NS}}}val'))
         if value is None:
             continue
         lim_loc = naryPr.find(f'{{{M_NS}}}limLoc')
@@ -171,22 +163,40 @@ def fix_sum_limits(omml_el):
         sub = ssub.find(f'{{{M_NS}}}sub')
         if base is None or sub is None:
             continue
-        lim_low = etree.Element(f'{{{M_NS}}}limLow')
-        e = etree.SubElement(lim_low, f'{{{M_NS}}}e')
-        lim = etree.SubElement(lim_low, f'{{{M_NS}}}lim')
-        for child in list(base):
-            e.append(child)
-        for child in list(sub):
-            lim.append(child)
-        ssub.getparent().replace(ssub, lim_low)
+        ssub.getparent().replace(ssub, mlim(list(base), list(sub)))
     return omml_el
 
 
+def latex_to_omml(latex_str, alttext=None, fix_limits=True):
+    """把 LaTeX 转成 OMML 元素。**这是唯一需要记住的入口。**
+
+    ``fix_limits=True``（默认）时归一化 n-ary 的上下限排布与 naryPr 结构，
+    即文档要求的"走入口"。只有调试转换器本身时才传 ``False``，拿未归一化的
+    原始 XSLT 结果。
+    """
+    latex_str = _rewrite_aligned(latex_str)
+    mathml = latex2mathml.converter.convert(latex_str)
+    tree = etree.fromstring(mathml.encode(), parser=_xml_parser())
+    omml = _get_xslt()(tree).getroot()
+    if alttext:
+        omml.set('alttext', alttext)
+    return fix_sum_limits(omml) if fix_limits else omml
+
+
+# ---- 兼容别名 ---------------------------------------------------------------
+# 下面三个名字是历史入口，行为已与 latex_to_omml 一致（都做完整归一化）。
+# 新代码用 latex_to_omml 即可；保留别名是为了不破坏既有生成脚本的 import。
+
+def latex_to_omml_alt(latex_str, alttext=None):
+    """兼容别名：等同 ``latex_to_omml(latex_str, alttext)``。"""
+    return latex_to_omml(latex_str, alttext)
+
+
 def latex_to_omml_fixed(latex_str):
-    """Convert LaTeX to OMML with summation limits fixed."""
-    return fix_sum_limits(latex_to_omml(latex_str))
+    """兼容别名：等同 ``latex_to_omml(latex_str)``。"""
+    return latex_to_omml(latex_str)
 
 
 def latex_to_omml_fixed_alt(latex_str, alttext=None):
-    """Convert LaTeX to OMML with limits fixed and optional alttext preserved."""
-    return fix_sum_limits(latex_to_omml_alt(latex_str, alttext))
+    """兼容别名：等同 ``latex_to_omml(latex_str, alttext)``。"""
+    return latex_to_omml(latex_str, alttext)

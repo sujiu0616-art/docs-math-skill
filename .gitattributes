@@ -1,0 +1,4 @@
+# Shell 脚本必须保持 LF 换行：CRLF 会让 bash 报
+# "bad interpreter: /usr/bin/env: no such file or directory"。
+# Windows 上 core.autocrlf=true 时，检出会把 LF 转成 CRLF，因此显式固定。
+*.sh text eol=lf

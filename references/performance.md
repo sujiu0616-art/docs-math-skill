@@ -14,16 +14,20 @@
 优先 XSLT 和 XPath；Python 层只做 regex/占位符/组装。
 
 ```python
-# Pattern: load XSLT once, reuse across all formulas
-MATHML_TO_OMML_XSLT = etree.XSLT(etree.parse("mathml_to_omml.xsl"))
+# Pattern: load and compile the XSLT once, reuse across all formulas.
+# scripts/latex_to_omml.py::_get_xslt() 就是这个模式：
+#   首次调用编译 MML2OMML.XSL 并缓存到模块级变量，之后所有公式复用同一个
+#   已编译的 XSLT 对象 —— 每次转换重新 parse + 编译 XSL 是数量级的浪费。
 
-def latex_to_omml(latex_src):
-    mml_str = latex_converter.convert(latex_src)
-    mml_elem = etree.fromstring(mml_str.encode('utf-8'))
-    return MATHML_TO_OMML_XSLT(mml_elem).getroot()
+def _get_xslt():
+    global _xslt
+    if _xslt is None:
+        _xslt = etree.XSLT(etree.parse(xsl_path, parser=_xml_parser()))
+    return _xslt
 ```
 
-如果外部 `.xsl` 不可行，把 XSLT 作为字符串内嵌并用 `etree.XSLT(etree.XML(xslt_bytes))`。
+不要另写一个「LaTeX -> OMML」的包装函数：入口只有一个，就是
+`latex_to_omml`（见 `references/omml.md` 的 Canonical Pipeline）。
 
 ## Formula Cache
 

@@ -26,9 +26,9 @@ def configure_styles(doc):
     rfonts.set(qn('w:eastAsia'), '宋体')
 
     for lvl, (size, cn_font) in {
-        1: (22, '黑体'),
-        2: (16, '黑体'),
-        3: (14, '黑体'),
+        1: (16, '黑体'),
+        2: (13, '黑体'),
+        3: (12, '黑体'),
     }.items():
         hs = doc.styles[f'Heading {lvl}']
         hs.font.size = Pt(size)
@@ -50,12 +50,18 @@ def configure_styles(doc):
 
 ## Page
 
-无 baseline 文档或 baseline 不可读时的回退预设：
+无 baseline 文档或 baseline 不可读时的回退预设（取值与 `scripts/mathdoc_cli.py` 一致）：
 
-- Page: A4，页边距 2.54cm。
-- Body: 宋体 + Times New Roman。
-- Headings: 黑体 + Times New Roman；H1 16pt、H2 13pt、H3 11pt；标题蓝 `#2E74B5`；Title 大标题 22pt bold black、中文用方正小标宋简体。
+- Page: 8.5 × 11 in；左/右页边距 1 in，上/下 0.8 in。
+- Body: 宋体 + Times New Roman，正文 11pt。
+- Headings: 黑体 + Times New Roman；H1 16pt、H2 13pt、H3 12pt；H1/H2 标题蓝 `#2E74B5`，H3 深蓝 `#1F4D78`；均加粗。
+- Title 大标题：22pt bold，中文用方正小标宋简体，拉丁用 Times New Roman。
 - Math: OMML via latex2mathml -> MML2OMML pipeline。
+
+注意 A4 与 2.1cm/2.54cm 边距是部分项目的习惯取值（如逐章讲义的生产文档），与上述代码默认不同。
+**有 baseline 文档时一律以 baseline 为准**，上面的预设只在无法读取 baseline 时使用。
+
+字体名以 `scripts/specs.py` 的 `FONT_*` 常量为单一真相源；`validator.py` 用同一份常量断言，改一处不会两侧漂移。
 
 ## Table
 

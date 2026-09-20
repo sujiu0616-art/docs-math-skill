@@ -14,11 +14,9 @@ Exit code: 0 = all OK, 1 = at least one failure.
 """
 import argparse
 import sys
-from pathlib import Path
 
-from latex_to_omml import latex_to_omml
-
-HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+from latex_to_omml import latex_to_omml  # noqa: E402
 
 
 def check(expr: str):
@@ -36,11 +34,8 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.file:
-        formulas = [
-            ln.rstrip("\n")
-            for ln in open(args.file, encoding="utf-8")
-            if ln.strip()
-        ]
+        with open(args.file, encoding="utf-8") as fh:
+            formulas = [ln.rstrip("\n") for ln in fh if ln.strip()]
     elif args.formulas:
         formulas = args.formulas
     else:
