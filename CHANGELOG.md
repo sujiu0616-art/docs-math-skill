@@ -1,5 +1,14 @@
 # math-doc Skill Changelog
 
+## 2026-10-21 v2.8.5 — 大标题对齐约束
+
+- **缺口**：`docx-style.md` 的 Alignment 只覆盖表格；Font/Page 规定了大标题字体/字号（方正小标宋 22pt）但没规定对齐；`mathdoc_cli` 建标题段落后未设 `alignment`，python-docx 默认左对齐，参考实现把默认值带进产物；validator 也不查。
+- `references/docx-style.md`：Alignment 扩为「文档标题与元信息 / 表格列对齐」——大标题与标题块元信息默认**居中**、章节标题默认左对齐、正文默认左对齐，服从格式优先级。
+- `scripts/mathdoc_cli.py`：标题段落与 meta 段落设 `alignment = CENTER`。
+- `scripts/validator.py`：level 2 新增 `check_title_alignment()`——Title 样式段落或带「方正小标宋简体」run 的段落必须居中（按有效对齐：段落 > 样式 > 默认），否则 FAIL。
+- `SKILL.md` 样式段补「对齐默认（按文档层级）」；`references/validator.md` 补断言说明；`references/lessons.md` 新增第 10 节。
+- 说明：此前标题对齐属于"没写规则"的未约束状态，不是有意左对齐。
+
 ## 2026-10-21 v2.8.4 — 主题字体属性盲区修复
 
 - **根因**：`w:rFonts` 上的 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` 优先于显式字体。默认模板的 Heading/Title 样式自带主题属性，只设显式 `w:eastAsia` 时 Word 实际用主题字体；validator 只读 `w:eastAsia` 会误判通过。

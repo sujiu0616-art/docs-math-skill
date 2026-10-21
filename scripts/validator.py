@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -137,6 +138,40 @@ def _theme_font_attrs(rfonts) -> list[str]:
     return found
 
 
+def _effective_alignment(paragraph) -> WD_ALIGN_PARAGRAPH:
+    """段落有效对齐：段落显式值 > 样式值 > 默认左对齐。"""
+    if paragraph.alignment is not None:
+        return paragraph.alignment
+    style = paragraph.style
+    if style is not None and style.paragraph_format.alignment is not None:
+        return style.paragraph_format.alignment
+    return WD_ALIGN_PARAGRAPH.LEFT
+
+
+def check_title_alignment(doc: Document) -> None:
+    """大标题默认居中：Title 样式段落，或带“方正小标宋简体”字体 run 的段落。
+
+    生成器的骨架标题是 run 级大标题（不走 Title 样式），因此按字体识别；
+    用户/模板明确要求左对齐标题时，level 2 不适用（见 references/validator.md）。
+    """
+    checked = 0
+    for index, paragraph in enumerate(doc.paragraphs, start=1):
+        is_title_style = paragraph.style is not None and paragraph.style.name == 'Title'
+        has_title_font = any(
+            rf.get(qn('w:eastAsia')) == FONT_TITLE_CN
+            for rf in paragraph._p.iter(qn('w:rFonts'))
+        )
+        if not (is_title_style or has_title_font):
+            continue
+        checked += 1
+        effective = _effective_alignment(paragraph)
+        if effective != WD_ALIGN_PARAGRAPH.CENTER:
+            raise AssertionError(
+                'document title must be centered '
+                f'(paragraph {index}, got alignment={effective})'
+            )
+
+
 def check_theme_fonts(doc: Document) -> None:
     """主题字体优先于显式字体：使用中的样式与正文 run 的 `w:rFonts` 不得带 *Theme。
 
@@ -212,6 +247,9 @@ def check_academic(doc: Document) -> list[str]:
 
     check_theme_fonts(doc)
     checks.append('no theme font attrs')
+
+    check_title_alignment(doc)
+    checks.append('title alignment ok')
 
     for table in doc.tables:
         grid = table._tbl.tblGrid

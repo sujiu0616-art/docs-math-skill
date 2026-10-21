@@ -190,6 +190,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
         strip_theme_fonts(style_rfonts)  # 默认模板 Heading 样式带 *Theme，必须删掉
 
     title_p = doc.add_paragraph()
+    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER  # 大标题默认居中
     title_p.paragraph_format.space_after = Pt(2)
     run = title_p.add_run(title)
     set_run_font(run, size=TITLE_SIZE_PT, bold=True, color=BLACK)
@@ -199,6 +200,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     strip_theme_fonts(title_rfonts)
 
     meta = doc.add_paragraph()
+    meta.alignment = WD_ALIGN_PARAGRAPH.CENTER  # 标题块元信息随大标题居中
     meta.paragraph_format.space_after = Pt(8)
     meta_run = meta.add_run(f'模板：{template_name}；作者：{author}；日期：{doc_date}')
     set_run_font(meta_run, size=META_SIZE_PT, color=GRAY)

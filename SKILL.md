@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.8.4
+version: 2.8.5
 author: user
 last_update: 2026-10-21
 status: production
@@ -91,6 +91,7 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 - **主题字体属性会覆盖显式字体**：`w:rFonts` 上残留 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` 时 Word 按主题字体渲染，显式 `w:eastAsia` 不生效；设置字体前必须先删 `*Theme` 属性（`mathdoc_cli`/`omml_helpers` 已处理，validator level 2 会断言）。
 - 正文与章节标题通过 `doc.styles` 设置一次，不逐 run 写字体；大标题、模板元信息等一次性段落可直接设 run 字体（如 `mathdoc_cli` 的 Title/meta 行）。
 - 表格标题（表N xxx）：表格**下方**居中、常规字体不加粗、不用黑体，space_before 4 / space_after 6。
+- **对齐默认（按文档层级）**：大标题与标题块元信息（副标题/作者/日期）**居中**；章节标题默认左对齐；正文默认左对齐；表格/公式按各自规则。用户或模板另有要求时以要求/模板为准（详见 `references/docx-style.md` 的 Alignment / Equation Alignment）。
 - 字号、行距、颜色、页边距、表格几何、列宽算法、对齐规则见 `references/docx-style.md`；默认常量集中在 `scripts/specs.py`（`BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
 - No decorative literal spaces. Strip text segments, no spaces around `=`/`+`/`-`; minus sign U+2212.
 
