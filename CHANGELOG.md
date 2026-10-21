@@ -1,5 +1,13 @@
 # math-doc Skill Changelog
 
+## 2026-10-21 v2.8.3 — 公式对齐按场景约束
+
+- `SKILL.md` Formula 段补「公式对齐（按场景）」：行内公式不居中；独立单行公式与多行对齐组整体居中、编号右对齐；长公式在关系符/运算符处折行后仍居中、编号在末行右侧；cases/矩阵/行列式独立居中；表格内公式随单元格；用户/期刊模板要求优先。
+- `references/docx-style.md` 新增 `## Equation Alignment`：默认规则、禁止项（无脑居中、空格凑居中、拆散对齐组、编号塞进公式）、Word/OMML 机制。
+- `references/omml.md` 新增 `## Display Math Alignment`（`m:oMathParaPr/m:jc`、aligned 单块、编号不进 `m:oMath`）。
+- `mathdoc_cli.add_numbered_equation`：编号右制表位改为**版心右边界**（页宽 − 左右页边距），不再写死 6.0in；骨架说明补充对齐约定。
+- 说明：此前只有「编号公式居中」的代码默认，没有场景约束文档——行内/表格/多行/长公式的对齐属于未约束状态，本次补齐。
+
 ## 2026-10-21 v2.8.2 — 格式优先级铁律
 
 - `SKILL.md` Styles 段改写为三级优先级：**用户明确要求 > 从零新建的 skill 默认格式 > 已有文档的原有格式**；明确禁止串用、禁止把默认格式套到既有文档、禁止局部要求扩大化。

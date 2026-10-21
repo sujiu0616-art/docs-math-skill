@@ -132,7 +132,9 @@ def add_numbered_equation(doc, latex, alttext=None, counter=None):
     p.paragraph_format.space_after = Pt(6)
     omml = latex_to_omml(latex, alttext)
     p._element.append(copy.deepcopy(omml))
-    p.paragraph_format.tab_stops.add_tab_stop(Inches(6.0), WD_TAB_ALIGNMENT.RIGHT)
+    # 编号右对齐到版心右边界（版心宽 = 页宽 - 左右页边距）
+    usable_in = PAGE_WIDTH_IN - MARGIN_LEFT_IN - MARGIN_RIGHT_IN
+    p.paragraph_format.tab_stops.add_tab_stop(Inches(usable_in), WD_TAB_ALIGNMENT.RIGHT)
     p.add_run('\t' + f'({counter[0]})')
     return p
 
@@ -191,7 +193,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     set_run_font(meta_run, size=META_SIZE_PT, color=GRAY)
 
     add_heading(doc, '编号规则', 1)
-    add_body(doc, '公式按出现顺序编号：(1)、(2)、(3)...；章节标题使用 Heading 1/2/3，中文标题为黑体，正文为宋体。')
+    add_body(doc, '公式按出现顺序编号：(1)、(2)、(3)...；独立公式居中、编号右对齐，行内公式随文不居中；章节标题使用 Heading 1/2/3，中文标题为黑体，正文为宋体。')
     add_heading(doc, '引用格式', 1)
     add_body(doc, cfg['citation'])
 

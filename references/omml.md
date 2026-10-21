@@ -99,6 +99,14 @@ def fix_integral_limits_and_lim(body):
 
 任何公式都必须走 `latex_to_omml` / `latex_to_omml_fixed_alt` 入口，不要绕过预处理直接调 `latex2mathml.converter.convert`。
 
+## Display Math Alignment
+
+- 仅含公式的段落会被 Word 当作 display math；水平位置由 `m:oMathParaPr/m:jc` 控制（`centerGroup` 默认、`center`、`left`、`right`）。
+- 单行独立公式：默认居中；不要用空格凑居中。
+- 多行对齐：用 `aligned`（生成侧改写为 `array{rl}` → `m:m`）作为单个公式块，不要拆成多段。
+- 编号属于段落文本（右侧制表位），不要写进 `m:oMath`。
+- 场景规则见 `references/docx-style.md` 的 Equation Alignment；用户/模板要求优先。
+
 ## Absolute Value Safety Rule
 
 Never generate `|x|` as plain text, and do not use `\|x\|` as an absolute-value workaround.
