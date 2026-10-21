@@ -1,74 +1,46 @@
 # math-doc Skill
 
-[![CI](https://github.com/sujiu0616-art/docs-math-skill/actions/workflows/test.yml/badge.svg)](https://github.com/sujiu0616-art/docs-math-skill/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-不是又一个 Markdown → DOCX 转换器，而是一条 **公式预检 → 原生 OMML → 中文排版 → 三级校验 → 渲染对比** 的数学文档质量流水线。
-
-## 它能生成什么
-
-讲义、证明、习题集、论文——任何公式密集的 Word 文档。公式是 **Word 原生 OMML**：双击可编辑，不是 Unicode 近似，不是截图。
-
-[examples/](examples/README.md) 里已提交 4 份真实产物（讲义、证明、习题集、论文），打开即用。
+把公式密集的 Markdown / LaTeX 生成 **Word 原生 OMML** 文档：公式双击可编辑，中文排版、三级校验、渲染冒烟，整条流水线可执行、可验证。
 
 ## 特性
 
-- **强制原生 OMML**：公式是 Word 可双击编辑的原生方程，不是 Unicode 近似或截图；裸 `\|x\|` 等危险语法直接报错，不会静默产出坏公式
-- **生成前公式预检**：`formula_check.py` 批量验证全部 LaTeX 公式可转 OMML，0 失败再动笔
-- **生成后独立校验**：`validator.py --level 1/2/3` 对公式、字体、表格、分页做可执行断言
-- **渲染验证**：像素 diff（`render_diff.py`）或轻量文本冒烟（`render_check.py`）
-- **回归测试**：22 个生产公式、107 个用例，CI 自动跑
-- **交付报告**：`publish_report.py` 输出公式数、校验项、引擎来源，可证明公式是原生 OMML
-- **动态经验沉淀**：每次任务自动读经验、完成后自动把踩坑和格式要求追加到个人经验库（`~/.config/math-doc/user-lessons.md`）——skill 越用越贴合你的习惯，用户不用手动维护
-
-## 怎么验证（每条命令都能跑）
-
-```bash
-python scripts/formula_check.py --file new_formulas.txt     # 生成前：公式全部可转 OMML
-python scripts/validator.py result.docx --level 2           # 生成后：公式/字体/表格/分页断言
-python scripts/render_check.py result.docx 关键词1 关键词2   # 渲染冒烟（LibreOffice → PDF → 文本 probe）
-python scripts/publish_report.py result.docx --level 2 \
-    --report validation-report.md                           # 交付报告：公式数 + 校验项 + 引擎来源
-```
-
-`publish_report.py` 产出「source / result / report」三件套，收件人可以凭报告核实公式是原生 OMML。示例报告：[examples/reports/validation-report.md](examples/reports/validation-report.md)。
+- **原生 OMML**：`latex2mathml → MML2OMML.XSL → OMML`，单入口 `latex_to_omml`；裸 `|x|` 等危险写法直接报错。
+- **生成前预检**：`formula_check.py` 批量验证全部 LaTeX 公式可转 OMML。
+- **生成后校验**：`validator.py --level 1|2|3` 对公式、字体、表格、分页做可执行断言。
+- **渲染验证**：`render_check.py` 文本冒烟，`render_diff.py` 像素 diff。
+- **交付报告**：`publish_report.py` 输出公式数、校验结论与 OMML 引擎来源。
+- **经验沉淀**（可选）：`mathdoc_learn.py` 把踩坑记入 `~/.config/math-doc/user-lessons.md`。
 
 ## 安装
 
-复制 `math-doc` 文件夹到你的 agent 的 skills 目录，并安装依赖：
+把本目录放进 agent 的 skills 目录（如 `~/.claude/skills/`、`~/.codex/skills/`、`~/.agents/skills/`），然后安装依赖：
 
 ```bash
-pip install -r math-doc/requirements.txt
+pip install -r requirements.txt
 ```
 
-常见 skills 目录（按你的 agent 而定）：
+依赖：Python（`latex2mathml`、`python-docx`、`lxml`、`pypdf`、`Pillow`）；Microsoft Word + `MML2OMML.XSL`（或设 `MATHDOC_MML2OMML`）；可选 LibreOffice / Poppler 用于渲染验证。
 
-| 目录 | 通常对应 |
-|---|---|
-| `~/.claude/skills/` | Claude Code |
-| `~/.codex/skills/` | Codex |
-| `~/.zcode/skills/` | ZCode |
-| `~/.cursor/skills/` 等 | 支持 skills 目录的其他 agent |
+## 用法
 
-## 依赖
-
-- Python：`latex2mathml`、`python-docx`、`lxml`、`pypdf`、`Pillow`（见 `requirements.txt`）
-- Microsoft Word 及 `MML2OMML.XSL`（Office 16）——或设 `MATHDOC_MML2OMML` 指向 XSL 文件
-- LibreOffice 用于 PDF 渲染（`MATHDOC_SOFFICE` 可覆盖路径）
-- Poppler `pdftoppm` 用于像素 diff（`PDFTOPPM` 可指向原生 exe）
-
-无 Office/LibreOffice 时：`validator.py` 的 XML 断言照常工作，渲染步骤显式声明「渲染未验证」即可。
-
-## 布局
-
+```bash
+python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
+python scripts/formula_check.py --file new_formulas.txt
+python scripts/validator.py proof.docx --level 2
+python scripts/render_check.py proof.docx 关键词1 关键词2
+python scripts/publish_report.py proof.docx --level 2 --report validation-report.md
 ```
-SKILL.md            skill 入口：用途、管线、强制规则、失败处理
-references/         样式规范、OMML 细节、markdown 解析、验证、性能、实战经验
-scripts/            specs / latex_to_omml / omml_helpers / mathdoc_cli / validator /
-                    formula_check / render_check / render_diff / publish_report / mathdoc_learn
-tests/              回归测试：22 个生产公式 × 4 项断言 + 结构规则 + aligned 用例（共 107 个）；无 Office 时 OMML 用例自动 skip
-examples/           4 份样例文档 + 复现脚本 + 交付报告示例
-sync_install.sh     把本仓库同步到各 agent 的 skills 目录（--dry-run 可预览）
+
+多 agent 安装可先 `bash sync_install.sh --dry-run` 预览，再去掉 `--dry-run` 同步。
+
+## 目录
+
+```text
+SKILL.md      skill 入口：用途、管线、强制规则、失败处理
+references/   样式规范、OMML 细节、markdown 解析、验证、性能、实战经验
+scripts/      生成 / 校验 / 渲染 / 报告 / 经验管理
 ```
 
 ## 许可

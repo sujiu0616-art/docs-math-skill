@@ -1,5 +1,12 @@
 # math-doc Skill Changelog
 
+## 2026-10-21 v2.8.1 — 公开库精简
+
+- 从公开仓库移出 `examples/`（4 份样例 docx + 生成脚本 + 报告示例）与 `tests/`（回归用例）：它们属于本地开发资产，不再随公共库发布；`.gitignore` 增加 `examples/`、`tests/`，防止以后误提交。
+- 移除依赖测试的 GitHub Actions workflow（`.github/workflows/test.yml`）与 README 的 CI 徽章。
+- README 精简：只保留定位、特性、安装、用法、目录与许可。
+- 开发侧副本已归档到本地备份目录（不随仓库上传）。
+
 ## 2026-09-20 v2.8.0 — 整理轮：修缺陷、去重复、打通同步
 
 本轮以「清理 + 修缺陷 + 结构去重」为目标，不新增能力；对外接口保持兼容。
