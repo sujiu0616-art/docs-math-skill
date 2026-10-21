@@ -1,0 +1,20 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: MathML-level tests (no Office required)
+        run: python -m pytest tests/test_mathml_only.py -v
+      - name: Full suite (OMML tests auto-skip without MML2OMML.XSL)
+        run: python -m pytest tests/ -v
