@@ -36,7 +36,7 @@ def expected_lim_loc(op):
 
 # --------------------------------------------------------------------- 字体约定
 
-#: 以下字体均为**用户未明确指定格式时**的默认值；用户指定格式时以用户为准。
+#: 以下字体为**无 baseline 且用户未要求格式**时的默认值；用户明确要求时以用户要求为准，基于已有文档时以 baseline 为准。
 FONT_BODY_CN = '宋体'
 FONT_HEADING_CN = '黑体'
 FONT_TITLE_CN = '方正小标宋简体'
@@ -45,9 +45,31 @@ FONT_LATIN = 'Times New Roman'
 #: 表头单元格底纹。validator 断言它，生成侧用它。
 TABLE_HEADER_FILL = 'E8EEF5'
 
-#: 无 baseline 文档时的页面回退预设（英寸）。
+#: 无 baseline 文档时的页面回退预设（英寸）。有 baseline 时以 baseline 为准。
 PAGE_WIDTH_IN = 8.5
 PAGE_HEIGHT_IN = 11.0
+MARGIN_LEFT_IN = 1.0
+MARGIN_RIGHT_IN = 1.0
+MARGIN_TOP_IN = 0.8
+MARGIN_BOTTOM_IN = 0.8
+
+# --------------------------------------------------------------------- 版式字号
+
+#: 以下字号/行距/颜色同样只是**无 baseline 且用户未要求格式**时的回退默认值；
+#: 有 baseline 走 baseline，用户明确要求走用户要求。
+BODY_SIZE_PT = 11
+BODY_LINE_SPACING = 1.35
+HEADING_SIZES_PT = {1: 16, 2: 13, 3: 12}
+HEADING_LINE_SPACING = 1.15
+HEADING_SPACE_BEFORE_PT = {1: 18, 2: 14, 3: 10}
+HEADING_SPACE_AFTER_PT = {1: 10, 2: 7, 3: 5}
+TITLE_SIZE_PT = 22
+META_SIZE_PT = 10
+
+#: 标题颜色（H1/H2 标题蓝，H3 深蓝）；灰色用于模板元信息行。
+COLOR_TITLE_BLUE = '2E74B5'
+COLOR_DARK_BLUE = '1F4D78'
+COLOR_GRAY = '595959'
 
 
 # --------------------------------------------------------------- 外部工具定位

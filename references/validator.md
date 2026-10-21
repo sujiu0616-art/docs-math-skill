@@ -45,8 +45,9 @@ python scripts/render_diff.py before.pdf after.pdf --dpi 150 --threshold 0.02
 - `w:t` 不能有首尾空格（代码块除外）。
 - Normal eastAsia 必须是 `宋体`；Heading eastAsia 是 `黑体`；Latin/digits 是 Times New Roman。
   **字体名以 `scripts/specs.py` 的 `FONT_*` 常量为准**，validator 与生成侧共用同一份常量。
-  若项目以既有 docx 作样式基线且基线另有约定（例如正文用方正小标宋简体），以基线为准，
-  此时该断言不适用 —— 改用 level 1，或自行核对基线字体。
+  该字体断言只适用于**从零新建且用户未要求格式**的文档。若用户明确指定格式，或文档基于既有 docx/模板基线
+  （基线另有约定，例如正文用仿宋或方正小标宋简体），以用户要求/基线为准，此时该断言不适用 —— 改用 level 1，
+  或自行核对目标格式；不要用默认值把用户/基线格式"修正"回来。
 - `w:tblGrid/gridCol` 数量和宽度必须匹配；只设 `cell.width` 不够。
 - 表头行有 `tblHeader`、`cantSplit`；表头单元格有 `shd E8EEF5`（常量 `specs.TABLE_HEADER_FILL`）；所有单元格 `vAlign=center`。
 - LibreOffice 可用时转 PDF 检查；没有渲染工具时明确说明“渲染未验证”。

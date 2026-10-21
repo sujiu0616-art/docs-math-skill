@@ -1,5 +1,13 @@
 # math-doc Skill Changelog
 
+## 2026-10-21 v2.8.2 — 格式优先级铁律
+
+- `SKILL.md` Styles 段改写为三级优先级：**用户明确要求 > 从零新建的 skill 默认格式 > 已有文档的原有格式**；明确禁止串用、禁止把默认格式套到既有文档、禁止局部要求扩大化。
+- `references/docx-style.md` 顶部同步同一优先级：本文默认值仅用于「从零新建且用户未要求」；已有文档以 baseline 为准，默认值只补缺失属性。
+- `references/validator.md` 明确：level 2 字体/表格断言只适用于「从零新建且用户未要求格式」；用户指定格式或基于 baseline 时不适用。
+- 两条铁律不得混用：用户要求永远压过一切；没用户要求时，新建走默认、既有文档走原格式。
+- **同轮一致性审计**：修正 `docx-style.md` 代码示例 Body 12pt 与 Page 11pt 的矛盾（统一 **11pt**）；正文行距统一 **1.35**（`omml_helpers` 原默认 1.5、`lessons.md` 原 1.25 改为「随 baseline」表述）；字号/行距/颜色/页边距集中到 `scripts/specs.py`，`mathdoc_cli.py` 与 `omml_helpers.py` 全部改为引用常量；`docx-style.md` 明确 A4/2.1cm 是 baseline 习惯而非第二套默认；`validator.md` 基线例外示例补「仿宋」。
+
 ## 2026-10-21 v2.8.1 — 公开库精简
 
 - 从公开仓库移出 `examples/`（4 份样例 docx + 生成脚本 + 报告示例）与 `tests/`（回归用例）：它们属于本地开发资产，不再随公共库发布；`.gitignore` 增加 `examples/`、`tests/`，防止以后误提交。

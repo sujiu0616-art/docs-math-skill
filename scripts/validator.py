@@ -130,7 +130,7 @@ def check_academic(doc: Document) -> list[str]:
     checks = check_math_layout(doc)
 
     # 正文中文字体须与 specs 的默认约定一致。
-    # 若项目以既有 docx 为样式基线且基线另有约定（如方正小标宋简体），以基线为准，
+    # 若项目以既有 docx 为样式基线且基线另有约定（如仿宋、方正小标宋简体），以基线为准，
     # 此时本项不适用 —— 详见 references/validator.md。
     east = _style_east_asia(doc, 'Normal')
     if east != FONT_BODY_CN:

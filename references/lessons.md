@@ -14,7 +14,7 @@
 
 - 高频需求：同一段落里「文字 + 粗体 + 内联 OMML」混排（如"**性质**：绝对值恒有 `\left|z\right|\ge 0`"）。
 - 实现：python-docx 中 `p._element.append(omml(latex))` 即可把 OMML 内联进普通段落；独立公式才用独占一行。`omml_helpers.py` 的 `mpara/mrn/mnary` 是底层积木，本项目用 `latex_to_omml + append` 更省事。
-- 经验：混排段保持行距一致（1.25）、公式基线自动对齐；不要在混排段里塞整段居中。
+- 经验：混排段与正文保持同一行距（无 baseline 时默认 1.35；项目 baseline 若为 1.25 等则以 baseline 为准）、公式基线自动对齐；不要在混排段里塞整段居中。
 
 ## 3. 生成后：可执行断言验证
 

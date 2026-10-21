@@ -18,7 +18,13 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, Inches
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from specs import FONT_BODY_CN, FONT_HEADING_CN, FONT_LATIN  # noqa: E402
+from specs import (  # noqa: E402
+    BODY_LINE_SPACING,
+    BODY_SIZE_PT,
+    FONT_BODY_CN,
+    FONT_HEADING_CN,
+    FONT_LATIN,
+)
 
 # 字体名统一取自 specs，与 validator 的断言同源。
 FONT_CN = FONT_BODY_CN        # SimSun
@@ -60,7 +66,7 @@ def mrn(text):
 
 
 def meq():
-    """Equals sign, no surrounding spaces (SKILL.md Lesson #6)."""
+    """Equals sign, no surrounding spaces（见 SKILL.md「Mandatory Rules」的 Spacing 规则）。"""
     return mrn("=")
 
 
@@ -153,7 +159,7 @@ def omath(*c):
 
 # ===== Chinese font helper =====
 def _set_cn(run, font=FONT_CN):
-    """Set East Asian font on a run (SKILL.md Core Lesson #5)."""
+    """Set East Asian font on a run（混合文本 helper 用，属一次性段落例外）。"""
     rp = run._element.get_or_add_rPr()
     rf = rp.find(qn('w:rFonts'))
     if rf is None:
@@ -161,8 +167,8 @@ def _set_cn(run, font=FONT_CN):
     rf.set(qn('w:eastAsia'), font)
 
 
-def set_normal_style(doc, font_name=FONT_MATH, font_size=Pt(12),
-                     eastasia=FONT_CN, line_spacing=1.5, space_after=Pt(6)):
+def set_normal_style(doc, font_name=FONT_MATH, font_size=Pt(BODY_SIZE_PT),
+                     eastasia=FONT_CN, line_spacing=BODY_LINE_SPACING, space_after=Pt(6)):
     """Configure Normal style: TNR + SimSun, so math and Chinese coexist."""
     sn = doc.styles['Normal']
     sn.font.name = font_name
@@ -181,7 +187,7 @@ def set_normal_style(doc, font_name=FONT_MATH, font_size=Pt(12),
 
 # ===== Paragraph builders (doc passed in — pure module) =====
 def mpara(doc, body, align=WD_ALIGN_PARAGRAPH.CENTER, sa=Pt(8)):
-    """Pure-math paragraph. CRITICAL: appends oMath to p._element (SKILL.md Lesson #7)."""
+    """Pure-math paragraph. CRITICAL: appends oMath to p._element（不要 append 到段落之外，否则 Word 按 display math 居中）。"""
     p = doc.add_paragraph(); p.alignment = align
     pPr = p._element.get_or_add_pPr()
     sp = E("w:spacing")
@@ -211,11 +217,11 @@ def mpara_mix(doc, segments, align=WD_ALIGN_PARAGRAPH.LEFT,
     for kind, data in segments:
         if kind == 't':
             r = p.add_run(data)
-            r.font.name = FONT_MATH; r.font.size = Pt(12)
+            r.font.name = FONT_MATH; r.font.size = Pt(BODY_SIZE_PT)
             _set_cn(r)
         elif kind == 'b':
             r = p.add_run(data)
-            r.font.name = FONT_MATH; r.font.size = Pt(12)
+            r.font.name = FONT_MATH; r.font.size = Pt(BODY_SIZE_PT)
             r.bold = True
             _set_cn(r)
         elif kind == 'm':

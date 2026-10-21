@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.8.1
+version: 2.8.2
 author: user
 last_update: 2026-10-21
 status: production
@@ -71,12 +71,25 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 
 ### Styles
 
-以下字体/排版规则均为**用户未要求时的默认值**：用户明确指定格式（字体、字号、颜色、间距、对齐等）时，以用户要求为准，默认规则不得覆盖用户格式。
+**格式优先级（铁律：按序判定，命中即止，禁止串用）**
 
-- 字体名以 `scripts/specs.py` 的 `FONT_*` 为单一真相源：正文宋体、标题黑体（Heading 2 必须加粗）、大标题方正小标宋简体、拉丁 Times New Roman。样式级必须显式设 `eastAsia`，只设 run 字体不足以通过 validator。
-- 通过 `doc.styles` 设置一次，不逐 run 写字体。
+1. **用户明确要求**：任何格式项（字体、字号、颜色、间距、对齐、页边距、表格/编号样式等）只要用户指定，就以用户要求为唯一约束；skill 默认值与文档原有格式都不得覆盖。
+2. **从零新建文档，且用户未提格式要求**：按本 skill 的默认格式（`scripts/specs.py` / `references/docx-style.md`）。
+3. **基于已有文档/模板/样例修改或续写，且用户未提格式要求**：以该文档的**原有格式**为基准（读取其样式与直接格式，沿用原字体、字号、段落、编号、页边距、表格样式等）；skill 默认值只用于补原文缺失或未定义的属性，不得批量覆盖原格式。
+
+**禁止串用**：
+- 不得把 skill 默认格式套到已有文档上、覆盖原有格式；
+- 不得拿已有文档的格式去覆盖用户的明确要求；
+- 用户只要求局部格式（如某段字号、某个表格）时，只改指定处，不扩大到全文；
+- 同一文档里已有多种格式时，沿用文档主体的那一套，不得混搭。
+
+（以下字体/排版规则均为上述第 2 条的默认值。）
+
+- 字体名以 `scripts/specs.py` 的 `FONT_*` 为单一真相源：正文宋体、标题黑体（Heading 2 必须加粗）、大标题方正小标宋简体、拉丁 Times New Roman。样式级必须显式设 `eastAsia`，只设 run 字体不足以通过 validator；字号/行距/颜色/页边距等默认值同源（`specs.BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
+- 项目 baseline 若使用仿宋、方正小标宋等其它中文字体，按 baseline 执行（见上方优先级第 3 条），**不得视为与「宋体」并列的第二套默认标准**。
+- 正文与章节标题通过 `doc.styles` 设置一次，不逐 run 写字体；大标题、模板元信息等一次性段落可直接设 run 字体（如 `mathdoc_cli` 的 Title/meta 行）。
 - 表格标题（表N xxx）：表格**下方**居中、常规字体不加粗、不用黑体，space_before 4 / space_after 6。
-- 字号、页边距、表格几何、列宽算法、对齐规则见 `references/docx-style.md`。
+- 字号、行距、颜色、页边距、表格几何、列宽算法、对齐规则见 `references/docx-style.md`；默认常量集中在 `scripts/specs.py`（`BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
 - No decorative literal spaces. Strip text segments, no spaces around `=`/`+`/`-`; minus sign U+2212.
 
 ### Validation

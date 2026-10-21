@@ -1,6 +1,11 @@
 # DOCX Style Standard
 
-> 本文所有字体/排版规则均为**用户未要求时的默认值**。用户明确指定格式（字体、字号、颜色、间距、对齐等）时以用户为准，不得用默认规则覆盖用户格式。
+> **格式优先级（与 `SKILL.md` 一致，铁律）**
+> 1. 用户明确要求 → 以用户为唯一约束；
+> 2. 从零新建文档且用户未提要求 → 本文默认值；
+> 3. 基于已有文档且用户未提要求 → 以该文档原有格式为基准（baseline 优先），本文默认值只补缺失属性。
+>
+> 任何情况下不得覆盖用户明确要求；也不得用本文默认值覆盖已有文档格式。禁止串用。
 
 ## Font
 
@@ -8,36 +13,41 @@
 - 中文正文：宋体。
 - 数字、英文：Times New Roman。
 - 公式字体：不手动指定，保留兼容性最好的数学字体（Word/WPS 默认，通常为 Cambria Math）；必须显式设置时使用 Times New Roman。
-- 字体通过 `doc.styles` 设置一次，不逐 run 写。
+- 项目 baseline 可能使用仿宋、方正小标宋或其它中文字体：那是 baseline 的约定，**不是本 skill 的默认标准**；有 baseline 时按 baseline 执行，不要当成与「宋体」并列的第二套默认。
+- 正文与章节标题通过 `doc.styles` 设置一次，不逐 run 写；大标题/元信息等一次性段落例外。
 - Markdown/HTML 用 CSS 映射同名字体；LaTeX 用 `ctex` 的 CJK 字体映射。
 
 字体检测不能只依赖 `InstalledFontCollection`。检查 `AppData\Local\Microsoft\Windows\Fonts`、注册表字体项、WPF `SystemFontFamilies` 或 `PrivateFontCollection`；只有全部找不到时才回退宋体。
 
 ```python
-from docx.shared import Pt
+from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 
 def configure_styles(doc):
     normal = doc.styles['Normal']
     normal.font.name = 'Times New Roman'
-    normal.font.size = Pt(12)
+    normal.font.size = Pt(11)                       # specs.BODY_SIZE_PT
+    normal.paragraph_format.line_spacing = 1.35     # specs.BODY_LINE_SPACING
     rpr = normal.element.get_or_add_rPr()
     rfonts = rpr.get_or_add_rFonts()
     rfonts.set(qn('w:eastAsia'), '宋体')
 
-    for lvl, (size, cn_font) in {
-        1: (16, '黑体'),
-        2: (13, '黑体'),
-        3: (12, '黑体'),
-    }.items():
+    for lvl, size, color in (
+        (1, 16, '2E74B5'),                          # specs.HEADING_SIZES_PT / COLOR_TITLE_BLUE
+        (2, 13, '2E74B5'),
+        (3, 12, '1F4D78'),                          # specs.COLOR_DARK_BLUE
+    ):
         hs = doc.styles[f'Heading {lvl}']
         hs.font.size = Pt(size)
         hs.font.bold = True
+        hs.font.color.rgb = RGBColor.from_string(color)
         hs.font.name = 'Times New Roman'
-        hs.element.rPr.rFonts.set(qn('w:eastAsia'), cn_font)
+        hs.paragraph_format.line_spacing = 1.15     # specs.HEADING_LINE_SPACING
+        hs.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
 ```
 
 只有语义强调才做 per-run 格式化：粗体、斜体、彩色标签。优先创建 character style，不直接往每个 run 写完整字体属性。
+大标题、模板元信息行（如 `mathdoc_cli` 的 Title/meta）是一次性段落，允许直接设 run 字体；正文/章节标题仍走样式；`omml_helpers` 的混排 helper 也属于按段落的局部处理。
 
 ## Spacing
 
@@ -50,18 +60,20 @@ def configure_styles(doc):
 
 ## Page
 
-无 baseline 文档或 baseline 不可读时的回退预设（取值与 `scripts/mathdoc_cli.py` 一致）：
+无 baseline 文档或 baseline 不可读时的回退预设（取值与 `scripts/specs.py` 常量一致，`mathdoc_cli.py` 直接引用这些常量）：
 
-- Page: 8.5 × 11 in；左/右页边距 1 in，上/下 0.8 in。
-- Body: 宋体 + Times New Roman，正文 11pt。
-- Headings: 黑体 + Times New Roman；H1 16pt、H2 13pt、H3 12pt；H1/H2 标题蓝 `#2E74B5`，H3 深蓝 `#1F4D78`；均加粗。
-- Title 大标题：22pt bold，中文用方正小标宋简体，拉丁用 Times New Roman。
+- Page: 8.5 × 11 in；左/右页边距 1 in，上/下 0.8 in（`specs.PAGE_*` / `MARGIN_*`）。
+- Body: 宋体 + Times New Roman，正文 **11pt、行距 1.35**（`specs.BODY_SIZE_PT` / `BODY_LINE_SPACING`）。
+- Headings: 黑体 + Times New Roman；H1 16pt、H2 13pt、H3 12pt，**行距 1.15**；H1/H2 标题蓝 `#2E74B5`，H3 深蓝 `#1F4D78`；均加粗（`specs.HEADING_*` / `COLOR_*`）。
+- Title 大标题：22pt bold，中文用方正小标宋简体，拉丁用 Times New Roman（`specs.TITLE_SIZE_PT`）。
+- 模板元信息行（一次性）：10pt、灰色 `#595959`（`specs.META_SIZE_PT` / `COLOR_GRAY`）。
 - Math: OMML via latex2mathml -> MML2OMML pipeline。
 
-注意 A4 与 2.1cm/2.54cm 边距是部分项目的习惯取值（如逐章讲义的生产文档），与上述代码默认不同。
-**有 baseline 文档时一律以 baseline 为准**，上面的预设只在无法读取 baseline 时使用。
+A4 与 2.1cm/2.54cm 边距是部分项目 **baseline** 的习惯取值（如逐章讲义的生产文档），**不是第二套默认标准**。
+**有 baseline 文档时一律以 baseline 为准**；上面的回退预设只在无法读取 baseline 时使用。
+字体名、字号、行距、颜色、页边距统一以 `scripts/specs.py` 常量为单一真相源（`FONT_*` / `BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）；`validator.py` 用同一份字体常量断言，生成侧与文档同源。
 
-字体名以 `scripts/specs.py` 的 `FONT_*` 常量为单一真相源；`validator.py` 用同一份常量断言，改一处不会两侧漂移。
+字体名、字号、行距、颜色、页边距统一以 `scripts/specs.py` 常量为单一真相源；`validator.py` 用同一份字体常量断言，生成侧与文档同源，改一处不会两侧漂移。
 
 ## Table
 

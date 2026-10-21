@@ -16,12 +16,27 @@ from docx.shared import Inches, Pt, RGBColor
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from latex_to_omml import latex_to_omml  # noqa: E402
 from specs import (  # noqa: E402
+    BODY_LINE_SPACING,
+    BODY_SIZE_PT,
+    COLOR_DARK_BLUE,
+    COLOR_GRAY,
+    COLOR_TITLE_BLUE,
     FONT_BODY_CN,
     FONT_HEADING_CN,
     FONT_LATIN,
     FONT_TITLE_CN,
+    HEADING_LINE_SPACING,
+    HEADING_SIZES_PT,
+    HEADING_SPACE_AFTER_PT,
+    HEADING_SPACE_BEFORE_PT,
+    MARGIN_BOTTOM_IN,
+    MARGIN_LEFT_IN,
+    MARGIN_RIGHT_IN,
+    MARGIN_TOP_IN,
+    META_SIZE_PT,
     PAGE_HEIGHT_IN,
     PAGE_WIDTH_IN,
+    TITLE_SIZE_PT,
 )
 
 # 字体名取自 specs，与 validator 的断言同源。
@@ -29,9 +44,9 @@ BODY_CN = FONT_BODY_CN
 HEADING_CN = FONT_HEADING_CN
 TITLE_CN = FONT_TITLE_CN
 LATIN = FONT_LATIN
-BLUE = RGBColor(0x2E, 0x74, 0xB5)
-DARK = RGBColor(0x1F, 0x4D, 0x78)
-GRAY = RGBColor(0x59, 0x59, 0x59)
+BLUE = RGBColor.from_string(COLOR_TITLE_BLUE)
+DARK = RGBColor.from_string(COLOR_DARK_BLUE)
+GRAY = RGBColor.from_string(COLOR_GRAY)
 BLACK = RGBColor(0x00, 0x00, 0x00)
 
 TEMPLATES = {
@@ -92,21 +107,18 @@ def set_run_font(run, size=None, bold=None, color=None, east=BODY_CN, latin=LATI
 
 
 def add_heading(doc, text, level=1):
+    # 字体/字号/颜色由 build_docx() 配置的 Heading 样式统一提供，不逐 run 写。
     p = doc.add_heading(text, level=level)
     p.paragraph_format.keep_with_next = True
-    sizes = {1: 16, 2: 13, 3: 12}
-    colors = {1: BLUE, 2: BLUE, 3: DARK}
-    for run in p.runs:
-        set_run_font(run, size=sizes.get(level, 12), bold=True, color=colors.get(level, DARK), east=HEADING_CN)
     return p
 
 
-def add_body(doc, text, size=11):
+def add_body(doc, text):
+    # 正文格式跟随 Normal 样式（宋体/Times New Roman、11pt、1.35 行距）。
     p = doc.add_paragraph()
     p.paragraph_format.space_after = Pt(6)
-    p.paragraph_format.line_spacing = 1.35
-    run = p.add_run(text)
-    set_run_font(run, size=size, color=BLACK)
+    p.paragraph_format.line_spacing = BODY_LINE_SPACING
+    p.add_run(text)
     return p
 
 
@@ -121,8 +133,7 @@ def add_numbered_equation(doc, latex, alttext=None, counter=None):
     omml = latex_to_omml(latex, alttext)
     p._element.append(copy.deepcopy(omml))
     p.paragraph_format.tab_stops.add_tab_stop(Inches(6.0), WD_TAB_ALIGNMENT.RIGHT)
-    run = p.add_run('\t' + f'({counter[0]})')
-    set_run_font(run, size=11, color=BLACK)
+    p.add_run('\t' + f'({counter[0]})')
     return p
 
 
@@ -132,27 +143,28 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     section = doc.sections[0]
     section.page_width = Inches(PAGE_WIDTH_IN)
     section.page_height = Inches(PAGE_HEIGHT_IN)
-    section.left_margin = Inches(1)
-    section.right_margin = Inches(1)
-    section.top_margin = Inches(0.8)
-    section.bottom_margin = Inches(0.8)
+    section.left_margin = Inches(MARGIN_LEFT_IN)
+    section.right_margin = Inches(MARGIN_RIGHT_IN)
+    section.top_margin = Inches(MARGIN_TOP_IN)
+    section.bottom_margin = Inches(MARGIN_BOTTOM_IN)
 
     normal = doc.styles['Normal']
     normal.font.name = LATIN
-    normal.font.size = Pt(11)
+    normal.font.size = Pt(BODY_SIZE_PT)
     rPr = normal.element.get_or_add_rPr()
     rFonts = rPr.get_or_add_rFonts()
     rFonts.set(qn('w:ascii'), LATIN)
     rFonts.set(qn('w:hAnsi'), LATIN)
     rFonts.set(qn('w:eastAsia'), BODY_CN)
     normal.paragraph_format.space_after = Pt(6)
-    normal.paragraph_format.line_spacing = 1.35
+    normal.paragraph_format.line_spacing = BODY_LINE_SPACING
 
-    for name, size, color, before, after in (
-        ('Heading 1', 16, BLUE, 18, 10),
-        ('Heading 2', 13, BLUE, 14, 7),
-        ('Heading 3', 12, DARK, 10, 5),
-    ):
+    for level in (1, 2, 3):
+        name = f'Heading {level}'
+        size = HEADING_SIZES_PT[level]
+        color = BLUE if level < 3 else DARK
+        before = HEADING_SPACE_BEFORE_PT[level]
+        after = HEADING_SPACE_AFTER_PT[level]
         style = doc.styles[name]
         style.font.name = LATIN
         style.font.size = Pt(size)
@@ -160,7 +172,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
         style.font.color.rgb = color
         style.paragraph_format.space_before = Pt(before)
         style.paragraph_format.space_after = Pt(after)
-        style.paragraph_format.line_spacing = 1.15
+        style.paragraph_format.line_spacing = HEADING_LINE_SPACING
         style_rpr = style.element.get_or_add_rPr()
         style_rfonts = style_rpr.get_or_add_rFonts()
         style_rfonts.set(qn('w:eastAsia'), HEADING_CN)
@@ -168,7 +180,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     title_p = doc.add_paragraph()
     title_p.paragraph_format.space_after = Pt(2)
     run = title_p.add_run(title)
-    set_run_font(run, size=22, bold=True, color=BLACK)
+    set_run_font(run, size=TITLE_SIZE_PT, bold=True, color=BLACK)
     title_rpr = run._element.get_or_add_rPr()
     title_rfonts = title_rpr.get_or_add_rFonts()
     title_rfonts.set(qn('w:eastAsia'), TITLE_CN)
@@ -176,7 +188,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     meta = doc.add_paragraph()
     meta.paragraph_format.space_after = Pt(8)
     meta_run = meta.add_run(f'模板：{template_name}；作者：{author}；日期：{doc_date}')
-    set_run_font(meta_run, size=10, color=GRAY)
+    set_run_font(meta_run, size=META_SIZE_PT, color=GRAY)
 
     add_heading(doc, '编号规则', 1)
     add_body(doc, '公式按出现顺序编号：(1)、(2)、(3)...；章节标题使用 Heading 1/2/3，中文标题为黑体，正文为宋体。')
