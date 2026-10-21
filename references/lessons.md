@@ -60,6 +60,15 @@
 - 验证手段：LibreOffice 渲染后按 **y 坐标**判断是否叠排 —— 算子、上限、下限三者在同一 x 附近纵向依次排列即为叠排成功；若三者 y 相同、x 递增则是角标。这是不看图就能判定版式的办法。
 - 教训：**XML 属性正确 ≠ Word 渲染正确**。凡是 Word 有自己排版启发式的结构（n-ary 限位、分数、根式），要么用结构强制，要么渲染后按坐标实测。生成脚本里复制粘贴"补 limLoc"的逻辑会漂移成第二条链，改一处必须全局收敛 —— 这也是现在只保留 `latex_to_omml` 单一入口的原因。
 
+## 9. 主题字体属性会覆盖显式字体（2026-10-21）
+
+- 现象：标题显式设了黑体/方正小标宋，Word 里却渲染成主题字体；`validator --level 3` 仍报 OK。
+- 根因：OOXML 中 `w:rFonts` 的 `*Theme` 属性（`asciiTheme`/`hAnsiTheme`/`eastAsiaTheme`/`cstheme`）**优先于**显式 `w:ascii`/`w:eastAsia`；只读 `w:eastAsia` 的断言是盲区。默认模板的 Heading/Title 样式自带 Theme 属性。
+- 修复：设置字体前删除 `w:rFonts` 上的 `*Theme` 属性（`mathdoc_cli` / `omml_helpers` 已处理）；`validator` level 2 新增断言（使用中的样式 + 正文 run）。
+- 验证：转 PDF 后读内嵌字体名（`FZXBSJW--GB1-0`=方正小标宋、`SimHei`=黑体、`SimSun`=宋体、`TimesNewRomanPSMT`=TNR），再 300dpi 放大看字形（宋体骨架 vs 黑体）。
+- 字体检测：不要只依赖 `InstalledFontCollection`，要枚举实际字族并检查 HKCU/用户字体目录。
+- 教训：**XML 属性存在 ≠ 渲染生效**；主题字体这种"优先级高于显式值"的结构，必须在写入侧清干净 + PDF 侧复核，不能只信 validator 的 OK。
+
 ## 与 skill 现有能力的关系
 
 | 经验 | 状态 |

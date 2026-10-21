@@ -24,6 +24,7 @@ from specs import (  # noqa: E402
     FONT_LATIN,
     FONT_TITLE_CN,
     TABLE_HEADER_FILL,
+    THEME_FONT_ATTRS,
     expected_lim_loc,
 )
 
@@ -126,6 +127,49 @@ def _style_east_asia(doc: Document, style_name: str):
     return rfonts.get(qn('w:eastAsia')) if rfonts is not None else None
 
 
+def _theme_font_attrs(rfonts) -> list[str]:
+    """返回 `w:rFonts` 上存在的主题字体属性（带值），用于报错。"""
+    found = []
+    for attr in THEME_FONT_ATTRS:
+        value = rfonts.get(qn('w:' + attr))
+        if value is not None:
+            found.append(f'w:{attr}={value}')
+    return found
+
+
+def check_theme_fonts(doc: Document) -> None:
+    """主题字体优先于显式字体：使用中的样式与正文 run 的 `w:rFonts` 不得带 *Theme。
+
+    这是 XML 断言的盲区修复：以前只读 w:eastAsia 值，有 Theme 属性时 Word 实际用主题字体，
+    validator 仍会通过；现在直接报 FAIL，并提示用 PDF 内嵌字体名复核。
+    """
+    used = ['Normal']
+    used += [name for name in ('Heading 1', 'Heading 2', 'Heading 3') if name in doc.styles]
+    if any(p.style.name == 'Title' for p in doc.paragraphs):
+        used.append('Title')
+    for name in used:
+        if name not in doc.styles:
+            continue
+        style = doc.styles[name]
+        rpr = style.element.find(qn('w:rPr'))
+        rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
+        if rfonts is None:
+            continue
+        present = _theme_font_attrs(rfonts)
+        if present:
+            raise AssertionError(
+                f'style {name} has theme font attributes ({", ".join(present)}); '
+                'Word uses theme fonts over explicit w:rFonts — remove *Theme attrs before setting explicit fonts'
+            )
+    for rfonts in doc.element.body.iter(qn('w:rFonts')):
+        present = _theme_font_attrs(rfonts)
+        if present:
+            raise AssertionError(
+                f'run-level w:rFonts has theme font attributes ({", ".join(present)}); '
+                'explicit fonts will be ignored — remove *Theme attrs'
+            )
+
+
 def check_academic(doc: Document) -> list[str]:
     checks = check_math_layout(doc)
 
@@ -165,6 +209,9 @@ def check_academic(doc: Document) -> list[str]:
         if _style_east_asia(doc, 'Title') != FONT_TITLE_CN:
             raise AssertionError(f'Title eastAsia must be {FONT_TITLE_CN}')
     checks.append('Title font ok')
+
+    check_theme_fonts(doc)
+    checks.append('no theme font attrs')
 
     for table in doc.tables:
         grid = table._tbl.tblGrid

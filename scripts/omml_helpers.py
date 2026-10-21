@@ -24,6 +24,7 @@ from specs import (  # noqa: E402
     FONT_BODY_CN,
     FONT_HEADING_CN,
     FONT_LATIN,
+    THEME_FONT_ATTRS,
 )
 
 # 字体名统一取自 specs，与 validator 的断言同源。
@@ -165,6 +166,8 @@ def _set_cn(run, font=FONT_CN):
     if rf is None:
         rf = OxmlElement('w:rFonts'); rp.insert(0, rf)
     rf.set(qn('w:eastAsia'), font)
+    for attr in THEME_FONT_ATTRS:
+        rf.attrib.pop(qn('w:' + attr), None)  # 主题字体优先于显式字体
 
 
 def set_normal_style(doc, font_name=FONT_MATH, font_size=Pt(BODY_SIZE_PT),
@@ -182,6 +185,8 @@ def set_normal_style(doc, font_name=FONT_MATH, font_size=Pt(BODY_SIZE_PT),
     if rFonts is None:
         rFonts = OxmlElement('w:rFonts'); rPr.insert(0, rFonts)
     rFonts.set(qn('w:eastAsia'), eastasia)
+    for attr in THEME_FONT_ATTRS:
+        rFonts.attrib.pop(qn('w:' + attr), None)  # 默认模板可能带主题字体属性
     return sn
 
 

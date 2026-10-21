@@ -1,5 +1,15 @@
 # math-doc Skill Changelog
 
+## 2026-10-21 v2.8.4 — 主题字体属性盲区修复
+
+- **根因**：`w:rFonts` 上的 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` 优先于显式字体。默认模板的 Heading/Title 样式自带主题属性，只设显式 `w:eastAsia` 时 Word 实际用主题字体；validator 只读 `w:eastAsia` 会误判通过。
+- `scripts/specs.py` 新增 `THEME_FONT_ATTRS` 清单。
+- `scripts/mathdoc_cli.py` 新增 `strip_theme_fonts()`：配置 Normal/Heading 样式与 run 字体时删除 `*Theme` 属性。
+- `scripts/omml_helpers.py`：`set_normal_style()` / `_set_cn()` 同步删除 `*Theme` 属性。
+- `scripts/validator.py`：level 2 新增 `check_theme_fonts()`——使用中的样式（Normal / Heading 1-3 / Title）与正文 run 的 `w:rFonts` 不得含 `*Theme`，否则 FAIL 并列出属性。
+- 文档：`SKILL.md`、`references/docx-style.md`、`references/validator.md`、`references/lessons.md`（新增第 9 节）补充主题字体陷阱与 PDF 内嵌字体名复核方法。
+- 验证：修复后生成 docx 的 Heading 样式无 Theme；validator level 2 通过；注入 `w:eastAsiaTheme` 后 validator 正确 FAIL；PDF 内嵌字体实测为 `FZXBSJW--GB1-0`（标题）、`SimHei`（标题）、`SimSun`（正文）、`TimesNewRomanPSMT`（拉丁）。
+
 ## 2026-10-21 v2.8.3 — 公式对齐按场景约束
 
 - `SKILL.md` Formula 段补「公式对齐（按场景）」：行内公式不居中；独立单行公式与多行对齐组整体居中、编号右对齐；长公式在关系符/运算符处折行后仍居中、编号在末行右侧；cases/矩阵/行列式独立居中；表格内公式随单元格；用户/期刊模板要求优先。

@@ -15,9 +15,10 @@
 - 公式字体：不手动指定，保留兼容性最好的数学字体（Word/WPS 默认，通常为 Cambria Math）；必须显式设置时使用 Times New Roman。
 - 项目 baseline 可能使用仿宋、方正小标宋或其它中文字体：那是 baseline 的约定，**不是本 skill 的默认标准**；有 baseline 时按 baseline 执行，不要当成与「宋体」并列的第二套默认。
 - 正文与章节标题通过 `doc.styles` 设置一次，不逐 run 写；大标题/元信息等一次性段落例外。
+- **主题字体陷阱**：`w:rFonts` 的 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` **优先于**显式 `w:ascii`/`w:eastAsia`；只设显式字体而保留 Theme 属性时，Word 实际仍用主题字体（典型：Heading 设了黑体却渲染成主题字体，validator 只读 `w:eastAsia` 也会误判通过）。设置字体前必须删除这些 `*Theme` 属性；`mathdoc_cli`、`omml_helpers` 已处理，validator level 2 会断言。
 - Markdown/HTML 用 CSS 映射同名字体；LaTeX 用 `ctex` 的 CJK 字体映射。
 
-字体检测不能只依赖 `InstalledFontCollection`。检查 `AppData\Local\Microsoft\Windows\Fonts`、注册表字体项、WPF `SystemFontFamilies` 或 `PrivateFontCollection`；只有全部找不到时才回退宋体。
+字体检测不能只依赖 `InstalledFontCollection`。检查 `AppData\Local\Microsoft\Windows\Fonts`、注册表字体项、WPF `SystemFontFamilies` 或 `PrivateFontCollection`；还要枚举实际字族并检查 HKCU/用户字体目录；只有全部找不到时才回退宋体。XML 断言通过不等于渲染字体正确——有渲染工具时用 PDF 内嵌字体名做最终核对（见 `references/validator.md` 的 PDF Rendering）。
 
 ```python
 from docx.shared import Pt, RGBColor

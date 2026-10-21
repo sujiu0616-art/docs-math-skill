@@ -36,6 +36,7 @@ from specs import (  # noqa: E402
     META_SIZE_PT,
     PAGE_HEIGHT_IN,
     PAGE_WIDTH_IN,
+    THEME_FONT_ATTRS,
     TITLE_SIZE_PT,
 )
 
@@ -91,6 +92,12 @@ TEMPLATES = {
 }
 
 
+def strip_theme_fonts(rFonts):
+    """删除 `w:rFonts` 的 *Theme 属性：主题字体优先于显式字体，留着会让显式字体失效。"""
+    for attr in THEME_FONT_ATTRS:
+        rFonts.attrib.pop(qn('w:' + attr), None)
+
+
 def set_run_font(run, size=None, bold=None, color=None, east=BODY_CN, latin=LATIN):
     run.font.name = latin
     rPr = run._element.get_or_add_rPr()
@@ -98,6 +105,7 @@ def set_run_font(run, size=None, bold=None, color=None, east=BODY_CN, latin=LATI
     rFonts.set(qn('w:ascii'), latin)
     rFonts.set(qn('w:hAnsi'), latin)
     rFonts.set(qn('w:eastAsia'), east)
+    strip_theme_fonts(rFonts)
     if size is not None:
         run.font.size = Pt(size)
     if bold is not None:
@@ -158,6 +166,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     rFonts.set(qn('w:ascii'), LATIN)
     rFonts.set(qn('w:hAnsi'), LATIN)
     rFonts.set(qn('w:eastAsia'), BODY_CN)
+    strip_theme_fonts(rFonts)  # 默认模板 Normal 可能带主题字体属性
     normal.paragraph_format.space_after = Pt(6)
     normal.paragraph_format.line_spacing = BODY_LINE_SPACING
 
@@ -178,6 +187,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
         style_rpr = style.element.get_or_add_rPr()
         style_rfonts = style_rpr.get_or_add_rFonts()
         style_rfonts.set(qn('w:eastAsia'), HEADING_CN)
+        strip_theme_fonts(style_rfonts)  # 默认模板 Heading 样式带 *Theme，必须删掉
 
     title_p = doc.add_paragraph()
     title_p.paragraph_format.space_after = Pt(2)
@@ -186,6 +196,7 @@ def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Do
     title_rpr = run._element.get_or_add_rPr()
     title_rfonts = title_rpr.get_or_add_rFonts()
     title_rfonts.set(qn('w:eastAsia'), TITLE_CN)
+    strip_theme_fonts(title_rfonts)
 
     meta = doc.add_paragraph()
     meta.paragraph_format.space_after = Pt(8)

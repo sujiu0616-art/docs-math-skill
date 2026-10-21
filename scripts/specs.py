@@ -45,6 +45,10 @@ FONT_LATIN = 'Times New Roman'
 #: 表头单元格底纹。validator 断言它，生成侧用它。
 TABLE_HEADER_FILL = 'E8EEF5'
 
+#: OOXML 主题字体属性：`w:rFonts` 上只要存在任一 Theme 属性，Word 就按主题字体渲染，
+#: 显式 ascii/hAnsi/eastAsia 会被忽略。生成侧设置字体前必须删除，校验侧断言不存在。
+THEME_FONT_ATTRS = ('asciiTheme', 'hAnsiTheme', 'eastAsiaTheme', 'cstheme')
+
 #: 无 baseline 文档时的页面回退预设（英寸）。有 baseline 时以 baseline 为准。
 PAGE_WIDTH_IN = 8.5
 PAGE_HEIGHT_IN = 11.0

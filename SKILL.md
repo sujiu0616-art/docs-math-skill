@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.8.3
+version: 2.8.4
 author: user
 last_update: 2026-10-21
 status: production
@@ -88,6 +88,7 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 
 - 字体名以 `scripts/specs.py` 的 `FONT_*` 为单一真相源：正文宋体、标题黑体（Heading 2 必须加粗）、大标题方正小标宋简体、拉丁 Times New Roman。样式级必须显式设 `eastAsia`，只设 run 字体不足以通过 validator；字号/行距/颜色/页边距等默认值同源（`specs.BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
 - 项目 baseline 若使用仿宋、方正小标宋等其它中文字体，按 baseline 执行（见上方优先级第 3 条），**不得视为与「宋体」并列的第二套默认标准**。
+- **主题字体属性会覆盖显式字体**：`w:rFonts` 上残留 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` 时 Word 按主题字体渲染，显式 `w:eastAsia` 不生效；设置字体前必须先删 `*Theme` 属性（`mathdoc_cli`/`omml_helpers` 已处理，validator level 2 会断言）。
 - 正文与章节标题通过 `doc.styles` 设置一次，不逐 run 写字体；大标题、模板元信息等一次性段落可直接设 run 字体（如 `mathdoc_cli` 的 Title/meta 行）。
 - 表格标题（表N xxx）：表格**下方**居中、常规字体不加粗、不用黑体，space_before 4 / space_after 6。
 - 字号、行距、颜色、页边距、表格几何、列宽算法、对齐规则见 `references/docx-style.md`；默认常量集中在 `scripts/specs.py`（`BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
