@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.8.7
+version: 2.8.8
 author: user
 last_update: 2026-10-21
 status: production

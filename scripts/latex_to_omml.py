@@ -296,6 +296,23 @@ def stack_nary_limits(omml_el, operator_size_pt=None):
     return omml_el
 
 
+def _drop_empty_delimiter_slots(omml_el):
+    """删除 m:d 里因 `\left[\int ... \right]` 多出来的空 m:e。
+
+    MML2OMML 对以积分开头的括号组偶尔会生成 `m:d` + 一个空 `m:e` + 一个内容
+    `m:e`；Word 会把空槽当成占位符。这里只在 `m:d` 有多个 `m:e` 且至少一个
+    非空时删掉空槽，保持至少一个 e。
+    """
+    for delim in list(omml_el.iter(f'{{{M_NS}}}d')):
+        es = delim.findall(f'{{{M_NS}}}e')
+        nonempty = [e for e in es if len(e) > 0]
+        if len(es) > 1 and nonempty:
+            for e in es:
+                if len(e) == 0:
+                    delim.remove(e)
+    return omml_el
+
+
 def latex_to_omml(latex_str, alttext=None, fix_limits=True, stack_limits=False, operator_size_pt=None):
     """把 LaTeX 转成 OMML 元素。**这是唯一需要记住的入口。**
 
@@ -318,6 +335,7 @@ def latex_to_omml(latex_str, alttext=None, fix_limits=True, stack_limits=False, 
         omml = fix_sum_limits(omml)
     if stack_limits:
         omml = stack_nary_limits(omml, operator_size_pt=operator_size_pt)
+    omml = _drop_empty_delimiter_slots(omml)
     return omml
 
 

@@ -1,5 +1,10 @@
 # math-doc Skill Changelog
 
+## 2026-10-23 v2.8.8 — 清理括号组空 m:e
+
+- `latex_to_omml` 新增 `_drop_empty_delimiter_slots()`：MML2OMML 对以 `\int` 开头的 `\left[...\right]` 括号组偶尔生成 `m:d` 里一空一实的两个 `m:e`，Word 会把空槽当占位符。现在只删除多出来的空槽（保留至少一个非空 e）。
+- 验证：`\left[\int f(x) dx\right]`、`\left(\int f dx\right)` 等转换后无空 `m:e`；已有公式不回归。
+
 ## 2026-10-23 v2.8.7 — 括号/撇号配对修复
 
 - **根因**：MML2OMML.XSL 对普通 `(`、`)` 配对很脆弱；`(\ln x)'` 会把 `)` 和撇号一起塞进上标，生成 `m:d` 时开括号自动放大、闭括号成为普通文本，Word 里表现为「括号一大一小」。
