@@ -20,33 +20,38 @@
 - **主题字体陷阱**：`w:rFonts` 的 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` **优先于**显式 `w:ascii`/`w:eastAsia`；只设显式字体而保留 Theme 属性时，Word 实际仍用主题字体（典型：Heading 设了黑体却渲染成主题字体，validator 只读 `w:eastAsia` 也会误判通过）。设置字体前必须删除这些 `*Theme` 属性；`mathdoc_cli`、`omml_helpers` 已处理，validator level 2 会断言。
 - Markdown/HTML 用 CSS 映射同名字体；LaTeX 用 `ctex` 的 CJK 字体映射。
 
-字体检测不能只依赖 `InstalledFontCollection`。检查 `AppData\Local\Microsoft\Windows\Fonts`（Windows 示例路径，见 project-scope.md）、注册表字体项、WPF `SystemFontFamilies` 或 `PrivateFontCollection`；还要枚举实际字族并检查 HKCU/用户字体目录；只有全部找不到时才回退宋体。XML 断言通过不等于渲染字体正确——有渲染工具时用 PDF 内嵌字体名做最终核对（见 `references/validator.md` 的 PDF Rendering）。
+字体检测不能只依赖 `InstalledFontCollection`：要枚举实际字族，并同时检查系统字体目录与用户字体目录（Windows/macOS/Linux 的具体路径与注册表项见 `references/project-scope.md` 的“本机环境示例”）；只有全部找不到时才回退宋体。XML 断言通过不等于渲染字体正确——有渲染工具时用 PDF 内嵌字体名做最终核对（见 `references/validator.md` 的 PDF Rendering）。
 
 ```python
+# 示意代码；所有常量从 scripts/specs.py 导入，不要抄成硬编码数字/颜色。
 from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
+from specs import (
+    BODY_LINE_SPACING, BODY_SIZE_PT,
+    FONT_BODY_CN, FONT_HEADING_CN, FONT_LATIN,
+    HEADING_LINE_SPACING, HEADING_SIZES_PT,
+    COLOR_DARK_BLUE, COLOR_TITLE_BLUE,
+)
 
 def configure_styles(doc):
     normal = doc.styles['Normal']
-    normal.font.name = 'Times New Roman'
-    normal.font.size = Pt(11)                       # specs.BODY_SIZE_PT
-    normal.paragraph_format.line_spacing = 1.35     # specs.BODY_LINE_SPACING
+    normal.font.name = FONT_LATIN
+    normal.font.size = Pt(BODY_SIZE_PT)
+    normal.paragraph_format.line_spacing = BODY_LINE_SPACING
     rpr = normal.element.get_or_add_rPr()
     rfonts = rpr.get_or_add_rFonts()
-    rfonts.set(qn('w:eastAsia'), '宋体')
+    rfonts.set(qn('w:eastAsia'), FONT_BODY_CN)
 
-    for lvl, size, color in (
-        (1, 16, '2E74B5'),                          # specs.HEADING_SIZES_PT / COLOR_TITLE_BLUE
-        (2, 13, '2E74B5'),
-        (3, 12, '1F4D78'),                          # specs.COLOR_DARK_BLUE
-    ):
+    for lvl in (1, 2, 3):
         hs = doc.styles[f'Heading {lvl}']
-        hs.font.size = Pt(size)
+        hs.font.size = Pt(HEADING_SIZES_PT[lvl])
         hs.font.bold = True
-        hs.font.color.rgb = RGBColor.from_string(color)
-        hs.font.name = 'Times New Roman'
-        hs.paragraph_format.line_spacing = 1.15     # specs.HEADING_LINE_SPACING
-        hs.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+        hs.font.color.rgb = RGBColor.from_string(
+            COLOR_TITLE_BLUE if lvl < 3 else COLOR_DARK_BLUE
+        )
+        hs.font.name = FONT_LATIN
+        hs.paragraph_format.line_spacing = HEADING_LINE_SPACING
+        hs.element.rPr.rFonts.set(qn('w:eastAsia'), FONT_HEADING_CN)
 ```
 
 只有语义强调才做 per-run 格式化：粗体、斜体、彩色标签。优先创建 character style，不直接往每个 run 写完整字体属性。
@@ -74,15 +79,13 @@ def configure_styles(doc):
 
 A4 与 2.1cm/2.54cm 边距是部分项目 **baseline** 的习惯取值（如逐章讲义的生产文档），**不是第二套默认标准**。
 **有 baseline 文档时一律以 baseline 为准**；上面的回退预设只在无法读取 baseline 时使用。
-字体名、字号、行距、颜色、页边距统一以 `scripts/specs.py` 常量为单一真相源（`FONT_*` / `BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）；`validator.py` 用同一份字体常量断言，生成侧与文档同源。
-
 字体名、字号、行距、颜色、页边距统一以 `scripts/specs.py` 常量为单一真相源；`validator.py` 用同一份字体常量断言，生成侧与文档同源，改一处不会两侧漂移。
 
 ## Table
 
 必做：
 
-- 表题（表N xxx）：位于表格**下方**、**居中**、常规字体**不加粗**、不用黑体（latin 用 Times New Roman）——用户格式要求，2026-08-16；旧约定「表上方黑体加粗」作废。实现：表格元素后追加居中段落，`space_before=4 / space_after=6`。
+- 表题（表N xxx）：位于表格**下方**、**居中**、常规字体**不加粗**、不用黑体（latin 用 Times New Roman）。实现：表格元素后追加居中段落，`space_before=4 / space_after=6`。
 - 表头跨页重复：第一行 `w:tblHeader`。
 - 表头底纹 `E8EEF5`。
 - 所有单元格 `vAlign=center`。

@@ -3,14 +3,15 @@
 """Manage the math-doc personal lesson store (safe, user-confirmed).
 
 Design goals (2026-10-23 review):
-- 默认只生成候选条目并打印，不写文件；必须加 --yes 才追加。
+- 默认只生成候选条目并打印，不写文件；写入/删除必须由用户在交互式终端确认。
+- 非 TTY 环境（模型/脚本/管道）一律拒绝写入 --yes 也不能绕过。
 - 每条带 ID、日期、来源，便于回滚；--remove <ID> 删除一条。
 - 文件在 skill 目录之外（~/.config/math-doc/user-lessons.md），sync_install.sh 不覆盖。
 
 Usage:
     python scripts/mathdoc_learn.py --add "教训" --root-cause "根因" --fix "修复" --verify "验证" --task "任务"
         → 只预览，不写入；用户确认后加 --yes
-    python scripts/mathdoc_learn.py --add "..." --yes
+    python scripts/mathdoc_learn.py --add "..." --yes   # 需要交互式终端，用户输入 y
     python scripts/mathdoc_learn.py --list
     python scripts/mathdoc_learn.py --remove L-20261023-01
     python scripts/mathdoc_learn.py --path
@@ -30,7 +31,7 @@ USER_LESSONS = Path(os.environ.get('MATHDOC_USER_LESSONS') or DEFAULT_PATH)
 HEADER = (
     '# user-lessons.md — 个人经验库（math-doc）\n'
     '\n'
-    '由 scripts/mathdoc_learn.py 管理；默认只预览，--yes 后才写入。\n'
+    '由 scripts/mathdoc_learn.py 管理；默认只预览，写入/删除需交互式终端确认。\n'
     '每条带 ID（L-YYYYMMDD-NN）、日期、来源，可用 --remove <ID> 回滚。\n'
     '此文件位于 skill 目录之外，sync_install.sh 同步安装不会覆盖。\n'
 )
@@ -113,7 +114,7 @@ def main() -> int:
     parser.add_argument('--verify', help='验证')
     parser.add_argument('--task', help='任务名（可选）')
     parser.add_argument('--source', default='用户确认', help='来源（默认：用户确认）')
-    parser.add_argument('--yes', action='store_true', help='确认写入（预览时不加）')
+    parser.add_argument('--yes', action='store_true', help='写入意图（仍需交互式 TTY 确认；非 TTY 拒绝）')
     parser.add_argument('--remove', metavar='ID', help='删除指定 ID 的条目')
     parser.add_argument('--list', action='store_true', help='打印全部经验')
     parser.add_argument('--path', action='store_true', help='打印经验文件路径')
@@ -130,6 +131,17 @@ def main() -> int:
         text = _load()
         if not text:
             print('error: user-lessons 不存在', file=sys.stderr)
+            return 1
+        if not sys.stdin.isatty():
+            print('拒绝删除：非交互环境。请用户在自己的终端运行并确认。', file=sys.stderr)
+            return 3
+        try:
+            answer = input(f'确认删除 {args.remove}？[y/N] ')
+        except EOFError:
+            print('cancelled', file=sys.stderr)
+            return 1
+        if answer.strip().lower() not in ('y', 'yes'):
+            print('cancelled')
             return 1
         new_text, ok = _remove(text, args.remove)
         if not ok:
@@ -153,8 +165,20 @@ def main() -> int:
         if not args.yes:
             print('候选条目（尚未写入）：')
             print(entry)
-            print('确认后加 --yes 才会写入；回滚用 --remove ' + entry_id)
+            print('确认后请在交互式终端加 --yes 再执行；回滚用 --remove ' + entry_id)
             return 2
+        if not sys.stdin.isatty():
+            print('拒绝写入：检测到非交互环境（stdin 不是 TTY）。', file=sys.stderr)
+            print('请用户在自己的终端运行同一命令并输入 y 确认，模型/脚本不能代写。', file=sys.stderr)
+            return 3
+        try:
+            answer = input('确认写入上述条目？[y/N] ')
+        except EOFError:
+            print('cancelled', file=sys.stderr)
+            return 1
+        if answer.strip().lower() not in ('y', 'yes'):
+            print('cancelled')
+            return 1
         USER_LESSONS.parent.mkdir(parents=True, exist_ok=True)
         USER_LESSONS.write_text(_insert(text, today, entry), encoding='utf-8')
         print(f'added {entry_id} to {USER_LESSONS}')

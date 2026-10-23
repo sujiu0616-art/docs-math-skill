@@ -10,10 +10,19 @@ Markdown -> block parsing -> inline parsing (placeholder) -> latex2mathml -> Mat
 
 先把每个 `$...$` 替换为占位符 `<<<MATH0>>>`，在统一文本上匹配 `**...**`，再恢复数学占位符。这避免粗体标记被公式切分。
 
+> 以下为示意代码（伪代码），非直接可运行；生产实现以 `scripts/*.py` 为准。
+
 ```python
-text = re.sub(r'\$(.*?)\$', lambda m: f'<<<MATH{i}>>>', text)
+placeholders = []
+def math_repl(m):
+    placeholders.append(m.group(1))
+    return f'<<<MATH{len(placeholders) - 1}>>>'
+
+text = re.sub(r'\$(.*?)\$', math_repl, text)
 text = re.sub(r'\*\*(.*?)\*\*', lambda m: f'<b>{m.group(1)}</b>', text)
 # restore math placeholders after bold parsing
+for idx, body in enumerate(placeholders):
+    text = text.replace(f'<<<MATH{idx}>>>', '$' + body + '$')
 ```
 
 ## Literal `$...$`

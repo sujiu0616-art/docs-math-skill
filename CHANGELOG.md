@@ -1,5 +1,13 @@
 # math-doc Skill Changelog
 
+## 2026-10-23 v2.9.1 — 把 review 约束落到脚本层
+
+- **经验写入防绕过**：`mathdoc_learn.py --add --yes` 现在要求 `sys.stdin.isatty()`；非 TTY（模型/管道/脚本）一律 exit 3 拒绝，写入时还需终端输入 `y`；`--remove` 同样要求 TTY。默认 `--add` 仍只预览。
+- **validator 来源开关**：新增 `--style-source default|baseline|user`（默认 default）。baseline/user 时跳过默认字体/主题/标题/表头样式断言，保留公式、空 m:e、编号 n-ary、表格网格校验，避免 level 2 在模板/用户格式上误报或被手动绕过。
+- **文档去项目化**：`docx-style.md` 删除表题变更史与 Windows 字体路径细节（移到 project-scope.md），补齐 `configure_styles` 示例为从 specs 导入常量；删除重复的“单一真相源”句子。
+- **示例修正**：`performance.md` 的 Formula Cache 伪代码修正 `unique_formulas` 来源与统计字段；`markdown-parser.md` 的占位符示例补 `i`/列表定义；不保证可直接运行的片段已标注“示意代码”。
+- **lessons 去具体项目**：`lessons.md` 顶部标为历史记录（非规范），probe 示例改用占位词，项目专有细节不再作为规则依据。
+
 ## 2026-10-23 v2.9.0 — 按 review 收敛范围与结构
 
 - **范围**：description / Output Contract 收窄——主交付 `.docx`；LaTeX/Markdown 仅作源格式输入或中间产物，不定义其成品排版；新增 `references/project-scope.md` 区分可迁移默认值 / baseline 示例（仿宋、方正小标宋、A4/2.1cm 等）/ 本机环境路径。

@@ -13,6 +13,8 @@
 
 优先 XSLT 和 XPath；Python 层只做 regex/占位符/组装。
 
+> 以下代码块是**示意代码（伪代码）**，不是可直接运行的完整实现；生产实现以 `scripts/*.py` 为准。
+
 ```python
 # Pattern: load and compile the XSLT once, reuse across all formulas.
 # scripts/latex_to_omml.py::_get_xslt() 就是这个模式：
@@ -31,29 +33,35 @@ def _get_xslt():
 
 ## Formula Cache
 
+> 示意伪代码；`formulas` / `cache` 为局部变量，按实际生成器接入。
+
 ```python
-unique_formulas = set()
+formulas = [...]  # 文档中出现的全部 LaTeX（按出现顺序）
+unique_formulas = list(dict.fromkeys(formulas))  # 去重但保序
+cache = {}
 for formula in unique_formulas:
     cache[formula] = latex_to_omml(formula)
 
 # reuse attached elements only after deepcopy
-p2._element.append(copy.deepcopy(cache['x']))
+p2._element.append(copy.deepcopy(cache[formulas[0]]))
 ```
 
 首次构建的子树没有 parent，可以安全缓存；一旦 append 后，复用必须 `deepcopy`。
 
 ## Stress Test Guideline
 
-- 公式出现次数 > 100：必须启用缓存统计，记录 unique/total/hits，并确认重复公式没有重复执行 LaTeX 转换。
+- 公式出现次数 > 100：必须启用缓存统计（示意：自行维护 total/unique/hits 计数），确认重复公式没有重复执行 LaTeX 转换。
 - 公式出现次数 > 200：必须运行内存检查，建议在构建前后采样 RSS 或 `tracemalloc`，确认缓存不会无界增长、文档不会因重复 deepcopy 导致峰值内存异常。
 
 ```python
 import json
 
+total = len(formulas)
+unique = len(unique_formulas)
 stats = {
-    "total_formula_occurrences": cache.total,
-    "unique_formulas": cache.unique,
-    "cache_hits": cache.hits,
+    "total_formula_occurrences": total,
+    "unique_formulas": unique,
+    "cache_hits": total - unique,
 }
 with open("cache_stats.json", "w", encoding="utf-8") as f:
     json.dump(stats, f, ensure_ascii=False, indent=2)

@@ -3,8 +3,12 @@
 
 Usage:
     python validator.py path.docx --level 2
+    python validator.py path.docx --level 2 --style-source baseline
 
 Exit code 0 means the document passed the requested checks.
+
+--style-source default(default) 表示按本 skill 默认格式断言字体/主题/标题对齐；
+baseline/user 表示文档有项目模板或用户格式要求，跳过默认格式断言（仍校验公式与表格网格）。
 
 字体与结构规则取自 ``specs.py``（生成侧用同一份常量），改一处不会两侧漂移。
 """
@@ -237,51 +241,52 @@ def check_numbered_equation_nary(doc: Document) -> None:
                 )
 
 
-def check_academic(doc: Document) -> list[str]:
+def check_academic(doc: Document, style_source: str = 'default') -> list[str]:
     checks = check_math_layout(doc)
+    strict_style = style_source == 'default'
 
-    # 正文中文字体须与 specs 的默认约定一致。
-    # 若项目以既有 docx 为样式基线且基线另有约定（如仿宋、方正小标宋简体），以基线为准，
-    # 此时本项不适用 —— 详见 references/validator.md。
-    east = _style_east_asia(doc, 'Normal')
-    if east != FONT_BODY_CN:
-        raise AssertionError(f'Normal eastAsia must be {FONT_BODY_CN} (got {east!r})')
+    if strict_style:
+        # 正文中文字体须与 specs 的默认约定一致。
+        east = _style_east_asia(doc, 'Normal')
+        if east != FONT_BODY_CN:
+            raise AssertionError(f'Normal eastAsia must be {FONT_BODY_CN} (got {east!r})')
 
-    normal = doc.styles['Normal']
-    rpr = normal.element.find(qn('w:rPr'))
-    rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
-    if rfonts is not None and (
-        rfonts.get(qn('w:ascii')) != FONT_LATIN or rfonts.get(qn('w:hAnsi')) != FONT_LATIN
-    ):
-        raise AssertionError(f'Normal Latin/digits must be {FONT_LATIN}')
-    checks.append('Normal font ok')
-
-    for name in ('Heading 1', 'Heading 2', 'Heading 3'):
-        if name not in doc.styles:
-            continue
-        if _style_east_asia(doc, name) != FONT_HEADING_CN:
-            raise AssertionError(f'{name} eastAsia must be {FONT_HEADING_CN}')
-        style = doc.styles[name]
-        rpr = style.element.find(qn('w:rPr'))
+        normal = doc.styles['Normal']
+        rpr = normal.element.find(qn('w:rPr'))
         rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
-        if rfonts.get(qn('w:ascii')) != FONT_LATIN or rfonts.get(qn('w:hAnsi')) != FONT_LATIN:
-            raise AssertionError(f'{name} Latin/digits must be {FONT_LATIN}')
-        if name == 'Heading 2' and style.font.bold is not True:
-            raise AssertionError('Heading 2 must be bold')
-    checks.append('Heading fonts ok')
+        if rfonts is not None and (
+            rfonts.get(qn('w:ascii')) != FONT_LATIN or rfonts.get(qn('w:hAnsi')) != FONT_LATIN
+        ):
+            raise AssertionError(f'Normal Latin/digits must be {FONT_LATIN}')
+        checks.append('Normal font ok')
 
-    # 大标题检查：仅当文档实际使用了 Title 样式段落时生效；
-    # run 级大标题（普通段落 + run 字体）由生成脚本负责，不在此检查。
-    if any(p.style.name == 'Title' for p in doc.paragraphs):
-        if _style_east_asia(doc, 'Title') != FONT_TITLE_CN:
-            raise AssertionError(f'Title eastAsia must be {FONT_TITLE_CN}')
-    checks.append('Title font ok')
+        for name in ('Heading 1', 'Heading 2', 'Heading 3'):
+            if name not in doc.styles:
+                continue
+            if _style_east_asia(doc, name) != FONT_HEADING_CN:
+                raise AssertionError(f'{name} eastAsia must be {FONT_HEADING_CN}')
+            style = doc.styles[name]
+            rpr = style.element.find(qn('w:rPr'))
+            rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
+            if rfonts.get(qn('w:ascii')) != FONT_LATIN or rfonts.get(qn('w:hAnsi')) != FONT_LATIN:
+                raise AssertionError(f'{name} Latin/digits must be {FONT_LATIN}')
+            if name == 'Heading 2' and style.font.bold is not True:
+                raise AssertionError('Heading 2 must be bold')
+        checks.append('Heading fonts ok')
 
-    check_theme_fonts(doc)
-    checks.append('no theme font attrs')
+        # 大标题检查：仅当文档实际使用了 Title 样式段落时生效。
+        if any(p.style.name == 'Title' for p in doc.paragraphs):
+            if _style_east_asia(doc, 'Title') != FONT_TITLE_CN:
+                raise AssertionError(f'Title eastAsia must be {FONT_TITLE_CN}')
+        checks.append('Title font ok')
 
-    check_title_alignment(doc)
-    checks.append('title alignment ok')
+        check_theme_fonts(doc)
+        checks.append('no theme font attrs')
+
+        check_title_alignment(doc)
+        checks.append('title alignment ok')
+    else:
+        checks.append(f'style-source={style_source}: skipped default font/title/theme assertions')
 
     check_numbered_equation_nary(doc)
     checks.append('numbered nary stacked ok')
@@ -295,6 +300,8 @@ def check_academic(doc: Document) -> list[str]:
         if not all(w > 0 for w in actual):
             raise AssertionError('tblGrid contains zero-width columns')
 
+        if not strict_style:
+            continue
         rows = table._tbl.findall(qn('w:tr'))
         if not rows:
             continue
@@ -324,11 +331,12 @@ def check_academic(doc: Document) -> list[str]:
                 if v_align is None or v_align.get(qn('w:val')) != 'center':
                     raise AssertionError('cells must use vAlign=center')
 
-    checks.append(f'tables={len(doc.tables)} ok')
+    checks.append(f'tables={len(doc.tables)} grid ok'
+                  + ('' if strict_style else f' (header style checks skipped, source={style_source})'))
     return checks
 
 
-def validate_docx(path: str | Path, level: int = 1) -> list[str]:
+def validate_docx(path: str | Path, level: int = 1, style_source: str = 'default') -> list[str]:
     doc_path = Path(path)
     if not doc_path.exists():
         raise FileNotFoundError(doc_path)
@@ -336,7 +344,7 @@ def validate_docx(path: str | Path, level: int = 1) -> list[str]:
     doc = Document(str(doc_path))
     checks = check_basic(doc)
     if level >= 2:
-        checks.extend(check_academic(doc))
+        checks.extend(check_academic(doc, style_source=style_source))
     if level >= 3:
         for section in doc.sections:
             if section.page_width.cm < 10 or section.page_height.cm < 10:
@@ -349,10 +357,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Validate math-doc .docx output.')
     parser.add_argument('docx', type=Path, help='generated .docx file')
     parser.add_argument('--level', type=int, choices=(1, 2, 3), default=1)
+    parser.add_argument(
+        '--style-source', choices=('default', 'baseline', 'user'), default='default',
+        help='文档格式来源：default=按本 skill 默认断言；baseline/user=跳过默认字体/主题/标题/表头样式断言',
+    )
     args = parser.parse_args()
 
     try:
-        checks = validate_docx(args.docx, level=args.level)
+        checks = validate_docx(args.docx, level=args.level, style_source=args.style_source)
     except (AssertionError, FileNotFoundError) as exc:
         print(f'FAIL: {exc}')
         raise SystemExit(1)

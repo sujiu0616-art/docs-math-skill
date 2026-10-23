@@ -39,7 +39,7 @@
 
 以下路径/命令只是工具发现示例，**不要写进生成文档或格式规则**：
 
-- Windows 字体目录：`%LOCALAPPDATA%\Microsoft\Windows\Fonts`、HKCU 字体注册项；字体检测需枚举实际字族；
+- Windows 字体检测：`%LOCALAPPDATA%\Microsoft\Windows\Fonts`、HKCU 字体注册项、WPF `SystemFontFamilies`、`PrivateFontCollection`；字体检测需枚举实际字族，不能只依赖 `InstalledFontCollection`；
 - Office OMML 引擎 `MML2OMML.XSL`：常见 `C:\Program Files\Microsoft Office\root\Office16\...`，可用 `MATHDOC_MML2OMML` 覆盖；
 - LibreOffice / Poppler：`specs.find_soffice()` / `find_pdftoppm()`，支持 `MATHDOC_SOFFICE` / `PDFTOPPM` 覆盖；
 - 个人经验库：`~/.config/math-doc/user-lessons.md`（`mathdoc_learn.py --path`）。

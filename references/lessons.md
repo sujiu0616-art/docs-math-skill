@@ -1,4 +1,6 @@
-# Lessons: 批量章节文档生成实战（2026-08）
+# Lessons: 历史实战记录（非规范）
+
+> 本文件是历史记录，不是规则规范；项目专有词、日期与路径仅作示例，规范以 `references/docx-style.md`、`references/omml.md`、`references/validator.md` 为准。
 
 多章节内容用同一流水线批量生成 docx 的实战记录：遇到的问题、解法、与 skill 现有能力的关系。全部通过验证与渲染冒烟。
 
@@ -13,7 +15,7 @@
 ## 2. 内联公式与文字混排
 
 - 高频需求：同一段落里「文字 + 粗体 + 内联 OMML」混排（如"**性质**：绝对值恒有 `\left|z\right|\ge 0`"）。
-- 实现：python-docx 中 `p._element.append(omml(latex))` 即可把 OMML 内联进普通段落；独立公式才用独占一行。`omml_helpers.py` 的 `mpara/mrn/mnary` 是底层积木，本项目用 `latex_to_omml + append` 更省事。
+- 实现：python-docx 中 `p._element.append(omml(latex))` 即可把 OMML 内联进普通段落；独立公式才用独占一行。`omml_helpers.py` 的 `mpara/mrn/mnary` 是底层积木，示例实现用 `latex_to_omml + append` 更省事。
 - 经验：混排段与正文保持同一行距（无 baseline 时默认 1.35；项目 baseline 若为 1.25 等则以 baseline 为准）、公式基线自动对齐；不要在混排段里塞整段居中。
 
 ## 3. 生成后：可执行断言验证
@@ -29,8 +31,8 @@
 - 解决：`scripts/render_check.py`（soffice 转 PDF + pypdf 提取文本 + probe 关键词）。
 - 三次翻车记录（全部是 probe 设计问题，不是渲染问题）：
   - 章节没有某概念时 probe MISSING（某章不含该概念）→ probe 用章节专属词，不要全局硬编码。
-  - 文档用缩写而 probe 用全称（文档写 "ROC" 而 probe 写 "收敛域"）→ probe 与文档实际用词一致。
-  - 空格不匹配（"z变换" vs 文档的 "z 变换"）→ probe 必须字节级一致。
+  - 文档用缩写而 probe 用全称（文档写「缩写A」而 probe 写「完整名称A」）→ probe 与文档实际用词一致。
+  - 空格不匹配（「术语A」 vs 文档的「术语 A」）→ probe 必须字节级一致。
 - 经验：MISSING 时先查文档是否真有该词，区分「内容缺失」和「渲染失败」；PDF 是临时产物，验证完删除。
 
 ## 5. Windows 中文输出乱码是假警报

@@ -13,7 +13,7 @@
 - **生成后校验**：`validator.py --level 1|2|3` 对公式、字体、表格、分页做可执行断言。
 - **渲染验证**：`render_check.py` 文本冒烟，`render_diff.py` 像素 diff。
 - **交付报告**：`publish_report.py` 输出公式数、校验结论与 OMML 引擎来源。
-- **经验沉淀（安全）**：`mathdoc_learn.py` 默认只生成候选条目，用户确认后才写入 `~/.config/math-doc/user-lessons.md`，可用 ID 回滚。
+- **经验沉淀（安全）**：`mathdoc_learn.py` 默认只生成候选条目；写入/删除必须由用户在自己的终端确认（非 TTY 拒绝），条目带 ID 可回滚。
 
 ## 安装
 

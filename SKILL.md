@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate and validate mathematical Word (.docx) documents — notes, exercise sets, summaries, reports, proofs, papers — with native editable OMML equations, Chinese typography defaults, formula pre-checks, a three-level validator and render QA. Use when the user asks to produce or format a formula-heavy .docx, or needs Markdown/LaTeX converted into a Word deliverable. Standalone LaTeX/Markdown output formatting is out of scope.
-version: 2.9.0
+version: 2.9.1
 author: user
 last_update: 2026-10-23
 status: production
@@ -83,18 +83,18 @@ Markdown / LaTeX source
 ## Validation
 
 - **生成前**：`scripts/formula_check.py` 预检全部新公式（0 失败再写生成器）。
-- **生成后**：`scripts/validator.py --level 1|2|3`；level 2 的字体/主题字体/表格断言只适用于“从零新建且用户未要求”的文档，baseline/用户格式例外见 `references/validator.md`。
+- **生成后**：`scripts/validator.py --level 1|2|3`；level 2 默认按 skill 默认格式断言字体/主题/标题/表头。若文档来自 baseline/用户格式，必须显式传 `--style-source baseline|user`，validator 会跳过默认样式断言、保留公式与表格网格校验（不要用“手动不跑 level 2”来绕过）。
 - **渲染冒烟（可选）**：LibreOffice + `render_check.py` / `render_diff.py`；无渲染工具时在交付里明确写“渲染未验证”。
 - 交付前自查：公式为原生 OMML 可编辑、无空 `m:e`、编号对齐、无 markdown 残留。
 
 ## Learning（安全流程）
 
 - **开始时**：读取 `~/.config/math-doc/user-lessons.md`（`mathdoc_learn.py --path` 确认位置）；只应用与当前任务直接相关的条目。
-- **优先级**：当前用户要求 > 项目 baseline/模板 > user-lessons > 内置默认。冲突时让位更高层。
+- **优先级**：当前用户要求 > 项目 baseline/模板 > 内置规则 > user-lessons（历史经验只作提示，不得覆盖前三层）。
 - **结束时**：若发现可复用经验，先生成候选条目（含来源/日期/任务），**展示给用户确认，不得静默写入**：
-  - 预览（不写文件）：`python scripts/mathdoc_learn.py --add "教训" --root-cause "根因" --fix "修复" --verify "验证" --task "任务"`
-  - 用户确认后加 `--yes` 才写入；条目自动带 ID/日期/来源。
-  - 回滚：`python scripts/mathdoc_learn.py --remove <ID>`。
+  - 预览（不写文件，模型/非交互环境只能做到这一步）：`python scripts/mathdoc_learn.py --add "教训" --root-cause "根因" --fix "修复" --verify "验证" --task "任务"`
+  - 写入必须由用户在自己的交互式终端运行同一命令并加 `--yes`，再输入 `y` 确认；脚本检测到非 TTY 会拒绝（模型不能代写）。
+  - 条目自动带 ID/日期/来源；回滚 `--remove <ID>`（同样需要用户终端确认）。
 - `references/lessons.md` 保持只读（内置通用经验）；个人经验只进 user-lessons.md。
 
 ## Failure Handling
@@ -127,7 +127,7 @@ Markdown / LaTeX source
 - `scripts/formula_check.py`: 生成前批量公式预检。
 - `scripts/render_check.py`: 文本冒烟；`scripts/render_diff.py`: 像素 diff。
 - `scripts/publish_report.py`: 交付报告（公式数/校验项/引擎来源）。
-- `scripts/mathdoc_learn.py`: 经验候选预览（默认不写）、`--yes` 写入、`--list`、`--remove <ID>`、`--path`。
+- `scripts/mathdoc_learn.py`: 经验候选预览（默认不写）、仅交互式终端可 `--yes` 写入、`--list`、`--remove <ID>`（TTY）、`--path`。
 
 ```bash
 python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
