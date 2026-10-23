@@ -1,5 +1,12 @@
 # math-doc Skill Changelog
 
+## 2026-10-23 v2.8.7 — 括号/撇号配对修复
+
+- **根因**：MML2OMML.XSL 对普通 `(`、`)` 配对很脆弱；`(\ln x)'` 会把 `)` 和撇号一起塞进上标，生成 `m:d` 时开括号自动放大、闭括号成为普通文本，Word 里表现为「括号一大一小」。
+- `scripts/latex_to_omml.py` 新增 `_wrap_parens()`：转换前把数量配对的普通 `()` 改写成 `\left(...\right)`，生成两侧同缩放的 `m:d`；已有 `\left(`/`\right)` 或 `\text{` 时不重复处理，括号不配对时保持原样。
+- `references/omml.md` 新增「Parentheses and Primes」说明；`[...]` 不自动包装（避免破坏 `\sqrt[3]{}` 等可选参数）。
+- 验证：`(\ln x)'` 转换后为 `sSup(m:d(lnx), ′)`，`m:d` 默认括号两侧同尺寸；`(x^2+1)`、`\frac{1}{(x+1)^2}`、已有 `\left(...\right)`、`\text{(a)}` 均正常。
+
 ## 2026-10-23 v2.8.6 — 编号公式 n 元算子叠排修复
 
 - **根因**：编号公式用「行内 `m:oMath` + 右制表位 `(n)`」时，Word 按 inline math 排版，`naryPr/limLoc` 不生效，∑/∏ 上下限被压成侧标；XML 断言 `limLoc=undOvr` 拦不住（属性存在 ≠ 渲染生效）。

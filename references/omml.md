@@ -111,6 +111,14 @@ m:limUpp( m:limLow(算子, 下限), 上限 )
 
 任何公式都必须走 `latex_to_omml` / `latex_to_omml_fixed_alt` 入口，不要绕过预处理直接调 `latex2mathml.converter.convert`。
 
+## Parentheses and Primes
+
+普通括号后接撇号（如 `(\ln x)'`）是 MML2OMML.XSL 的已知脆弱点：XSLT 会把 `)` 和 `′` 一起当成上标（`sSup(,′)`），生成 `m:d` 时开括号被自动放大、闭括号留在内容里变成普通文本，Word 里看起来「括号一大一小」。
+
+生成侧入口 `latex_to_omml` 现在会先把**数量配对**的普通 `(` `)` 改写成 `\left(...\right)`：XSLT 会生成两侧一起缩放的 `m:d`，撇号落在 `m:d` 外层的上标上，问题消失。已有 `\left(`/`\right)` 或含 `\text{` 的公式不重复包装；括号数量不配对时保持原样。
+
+`[...]` 未自动包装（它可能是 `\sqrt[3]{}` 这类 LaTeX 可选参数），需要时手写 `\left[...\right]`。
+
 ## Display Math Alignment
 
 - 仅含公式的段落会被 Word 当作 display math；水平位置由 `m:oMathParaPr/m:jc` 控制（`centerGroup` 默认、`center`、`left`、`right`）。

@@ -67,6 +67,30 @@ def _get_xslt():
     return _xslt
 
 
+def _wrap_parens(latex):
+    """把成对的普通括号改写成 `\left(...\right)`。
+
+    MML2OMML.XSL 对普通 `(` 和 `)` 的配对很脆弱：例如 `(\ln x)'` 会把右括号
+    和撇号一起塞进上标，生成 `m:d` 时开括号被自动放大、闭括号变成普通文本，
+    Word 里出现「括号一大一小」。显式 `\left(...\right)` 会生成带默认括号的
+    `m:d`，两侧一起自动缩放。已有 `\left(` / `\right)` 或含 `\text{` 时不动，
+    括号数量不配对时也不动（避免破坏 LaTeX 语法）。
+    """
+    if latex.count('(') != latex.count(')') or latex.count('(') == 0:
+        return latex
+    if '\\left(' in latex or '\\right)' in latex or '\\text{' in latex:
+        return latex
+    out = []
+    for ch in latex:
+        if ch == '(':
+            out.append('\\left(')
+        elif ch == ')':
+            out.append('\\right)')
+        else:
+            out.append(ch)
+    return ''.join(out)
+
+
 def _rewrite_aligned(latex):
     """LaTeX 预处理：把 latex2mathml 不认识的 aligned 环境改写为 array 环境。
 
@@ -284,7 +308,7 @@ def latex_to_omml(latex_str, alttext=None, fix_limits=True, stack_limits=False, 
     ``limLoc`` 不生效，只有结构化才能保证上下限叠排。``operator_size_pt``
     可同时指定算子字号（编号公式默认用 ``specs.DISPLAY_OPERATOR_SIZE_PT``）。
     """
-    latex_str = _rewrite_aligned(latex_str)
+    latex_str = _wrap_parens(_rewrite_aligned(latex_str))
     mathml = latex2mathml.converter.convert(latex_str)
     tree = etree.fromstring(mathml.encode(), parser=_xml_parser())
     omml = _get_xslt()(tree).getroot()
