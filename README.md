@@ -10,7 +10,7 @@
 
 - **原生 OMML**：`latex2mathml → MML2OMML.XSL → OMML`，单入口 `latex_to_omml`；裸 `|x|` 等危险写法直接报错。
 - **生成前预检**：`formula_check.py` 批量验证全部 LaTeX 公式可转 OMML。
-- **生成后校验**：`validator.py --level 1|2|3` 对公式、字体、表格、分页做可执行断言。
+- **生成后校验**：`validator.py --level 1|2|3` 对公式、字体、表格、分页做可执行断言；检查项有编号，`--list-checks` 可查。
 - **渲染验证**：`render_check.py` 文本冒烟，`render_diff.py` 像素 diff。
 - **交付报告**：`publish_report.py` 输出公式数、校验结论与 OMML 引擎来源。
 - **经验沉淀（安全）**：`mathdoc_learn.py` 默认只生成候选条目；写入/删除必须由用户在自己的终端确认（非 TTY 拒绝），条目带 ID 可回滚。
@@ -31,6 +31,7 @@ pip install -r requirements.txt
 python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
 python scripts/formula_check.py --file new_formulas.txt
 python scripts/validator.py proof.docx --level 2
+python scripts/validator.py --list-checks
 python scripts/render_check.py proof.docx 关键词1 关键词2
 python scripts/publish_report.py proof.docx --level 2 --report validation-report.md
 ```
@@ -41,7 +42,7 @@ python scripts/publish_report.py proof.docx --level 2 --report validation-report
 
 ```text
 SKILL.md      skill 入口：用途、管线、强制规则、失败处理
-references/   样式规范、OMML 细节、markdown 解析、验证、性能、实战经验
+references/   样式规范、OMML 细节、markdown 解析、校验、pitfalls、项目范围
 scripts/      生成 / 校验 / 渲染 / 报告 / 经验管理
 ```
 

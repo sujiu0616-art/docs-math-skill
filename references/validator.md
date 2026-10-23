@@ -4,116 +4,79 @@
 
 ## Validation Levels
 
-| Level | 场景 | 检查 |
+| Level | 场景 | 检查范围 |
 |---|---|---|
-| 1 basic | 普通作业/快速输出 | 文档能打开、存在公式、无空 `m:e`、无 Markdown 残留、无首尾空格、表格结构有效 |
-| 2 academic | 论文/讲义/报告 | Level 1 + 字体、表格网格、表头、垂直居中、引用字段存在 |
-| 3 publication | 投稿/正式交付 | Level 2 + 渲染 PDF 视觉检查、页边距、公式编号、跨页表头、渲染 diff |
-
-## Long Document Validation
-
-长文档在 Level 2 基础上追加以下检查：
-
-- 页数检查：渲染 PDF 后核对页数，确认没有异常空页或断页；页数异常时检查分页符、表格宽度和图片尺寸。
-- 表格跨页：长表格必须保留 `tblHeader` 跨页重复表头，表头行 `cantSplit`，并渲染检查跨页处是否出现孤立表头或行内容被切断。
-- 标题孤行：Heading 段落必须 `keep_with_next`；渲染检查页尾不能只留下标题，正文应随标题进入下一页。
-
-长文档阈值可按项目定义，建议文档超过 30 页、或包含 10 张以上表格时启用。
-
-```python
-from docx import Document
-
-doc = Document("long.docx")
-for p in doc.paragraphs:
-    if p.style.name.startswith("Heading") and not p.paragraph_format.keep_with_next:
-        print("heading may orphan:", p.text[:40])
-```
+| 1 basic | 普通作业/快速输出 | B1-B5 |
+| 2 academic | 论文/讲义/报告 | Level 1 + M1/M2 + T1 + S1-S5/T2 |
+| 3 publication | 投稿/正式交付 | Level 2 + P1 页面尺寸 + 渲染/PDF 复核 |
 
 ## CLI
 
 ```bash
 python scripts/validator.py path.docx --level 2
 python scripts/validator.py path.docx --level 2 --style-source baseline
-python scripts/render_diff.py before.pdf after.pdf --dpi 150 --threshold 0.02
+python scripts/validator.py --list-checks
 ```
 
-`--style-source` 明确文档格式来源，避免 level 2 在非默认格式文档上误报：
+`--style-source` 明确文档格式来源：
 
-- `default`（默认）：按本 skill 默认格式断言字体、主题字体、标题对齐、表头样式。
-- `baseline` / `user`：文档来自既有模板/用户格式；跳过上述默认样式断言，仍校验公式结构、空 m:e、编号 n-ary、表格网格。不要用“手动不跑 level 2”来绕过。
+- `default`（默认）：执行 S1-S5 字体/主题/标题与 T2 表头样式断言。
+- `baseline` / `user`：跳过 S1-S5/T2，仍执行 B1-B5、M1/M2、T1、P1；输出中以 `[note]` 列出被跳过的断言。
+- 不要用“不跑 level 2”绕过；检查项编号与含义以 `validator.py` 的 `CHECK_SPECS` 为唯一代码来源。
 
-## Core Checks
+## Check Items
 
-- **代码块豁免**：Consolas 字体的段落视为代码块，其中的 `**`/`$`/首尾空格不计为 markdown 残留 —— 代码块是逐字引用的源程序。
-- `body.xpath('.//m:e[not(node())]')` 必须为空。
-- 积分 `limLoc=subSup`；求和/连乘 `limLoc=undOvr`；`lim` 必须是 `m:limLow`。
-- 文本 run 中不能有 `**`；CJK 上下文中出现可疑 `$` 要报错。
-- `w:t` 不能有首尾空格（代码块除外）。
-- Normal eastAsia 必须是 `宋体`；Heading eastAsia 是 `黑体`；Latin/digits 是 Times New Roman。
-  **字体名以 `scripts/specs.py` 的 `FONT_*` 常量为准**。这些断言只在 `--style-source default` 下执行；
-  文档来自 baseline 或用户明确格式时，传 `--style-source baseline|user` 显式跳过（仍跑其余检查），
-  不要用默认值把用户/基线格式“修正”回来。
-- 编号公式的 n 元算子：含制表位编号的 `m:oMath` 段落里，∑/∏ 不得再用 `m:nary`（inline 渲染会把上下限压成侧标）；生成侧用 `latex_to_omml(..., stack_limits=True)` 产出 `m:limUpp/m:limLow`。
-- 大标题默认居中：Title 样式段落，或带「方正小标宋简体」字体 run 的段落，有效对齐（段落 > 样式 > 默认）必须是居中；章节标题不要求居中。用户/模板明确要求左对齐标题时 level 2 不适用。
-- 使用中的样式（Normal / Heading 1-3 / Title，若使用）与正文 run 的 `w:rFonts` **不得含 `*Theme` 属性**（`w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme`）：主题字体优先于显式字体，含 Theme 时显式字体会失效。validator 会直接 FAIL 并列出属性；修复方式是删除这些属性后再设置显式字体。
-- `w:tblGrid/gridCol` 数量和宽度必须匹配；只设 `cell.width` 不够。
-- 表头行有 `tblHeader`、`cantSplit`；表头单元格有 `shd E8EEF5`（常量 `specs.TABLE_HEADER_FILL`）；所有单元格 `vAlign=center`。这些表头样式断言只在 `--style-source default` 下执行；非默认来源只检查 tblGrid 网格有效性。
-- LibreOffice 可用时转 PDF 检查；没有渲染工具时明确说明“渲染未验证”。
+| 编号 | 含义 | 来源 |
+|---|---|---|
+| B1 | 存在 OMML 公式 | 所有 |
+| B2 | 无空 `m:e` | 所有 |
+| B3 | `lim` 使用 `m:limLow`，不是 `m:sSub` | 所有 |
+| B4 | 无 Markdown 残留（代码块 Consolas 段落豁免） | 所有 |
+| B5 | `w:t` 无首尾空格（代码块豁免） | 所有 |
+| M1 | n-ary `limLoc` 与 `specs.NARY_LIM_LOC` 一致 | 所有 |
+| M2 | 编号公式的 ∑/∏ 已结构化，无 `m:nary` | 所有 |
+| S1 | Normal 中英文字体符合默认 | default |
+| S2 | Heading 字体、H2 加粗符合默认 | default |
+| S3 | Title 字体符合默认 | default |
+| S4 | 使用中的样式与正文 run 无 `*Theme` 属性 | default |
+| S5 | 大标题/标题块居中 | default |
+| T1 | `tblGrid/gridCol` 数量与宽度有效 | 所有 |
+| T2 | 表头 `tblHeader/cantSplit/shd/vAlign` 符合默认 | default |
+| P1 | 页面尺寸有效（level 3） | level 3 |
 
-`empty m:e` 最常见来源是裸 `|...|` 绝对值公式，例如 `|X(jω)|²`。先查这类公式并改成 `\left|...\right|`，再重新生成和校验。
+## Long Document（待办，当前未自动化）
 
-另一个已知来源：`\left(...\right)` 内部以正负号开头（`\left(-x\right)`、`\left(-j\omega\right)`）。
-latex2mathml 会把开头的 `+`/`-` 解析成独立的运算符节点，其 `m:e` 落在定界符对象之外成为空元素。
-生成侧用花括号把该符号包成序数原子即可：`\left({-}x\right)`。
+以下规则保留，但 `validator.py` 尚未实现，不得在交付说明里声称“已校验”；需要时用渲染/人工或后续脚本检查：
 
-Heading 样式必须显式存在 `w:rPr/w:rFonts` 且 `eastAsia=黑体`；只给标题 run 设黑体但样式本身缺失时仍会失败。
+- **L1 页数**：渲染 PDF 后核对页数，排查异常空页/断页；检查分页符、表格宽度、图片尺寸。
+- **L2 跨页表头**：长表格 `tblHeader` 跨页重复、表头行 `cantSplit`；渲染检查跨页处是否孤立表头或行内容被截断。
+- **L3 标题孤行**：Heading 段落应 `keep_with_next`；渲染检查页尾不能只留标题。
+- 建议阈值：超过 30 页或 10 张以上表格时启用；具体阈值可由项目定义。
 
-## Table Grid Check
-
-Word 的有效列布局来自 `w:tblGrid/w:gridCol`。LibreOffice 转换可能仍看起来正常，但隐藏 mismatch；validator 必须检查保存后的 docx，而不是只检查内存中的 cell width。
-
-```python
-from docx.oxml.ns import qn
-
-def check_table_grid(doc, expected_per_table):
-    for table, expected in zip(doc.tables, expected_per_table):
-        grid = table._tbl.tblGrid
-        cols = grid.findall(qn("w:gridCol")) if grid is not None else []
-        actual = [int(c.get(qn("w:w"), 0)) for c in cols]
-        assert len(actual) == len(table.columns), "tblGrid column count mismatch"
-        assert all(w > 0 for w in actual), "tblGrid contains zero-width columns"
-        expected = [int(cm * 567) for cm in expected]
-        assert actual == expected, f"tblGrid mismatch: {actual} != {expected}"
-```
-
-## PDF Rendering
+## Render / PDF
 
 ```bash
 soffice --headless --convert-to pdf --outdir out input.docx
+python scripts/render_check.py out/input.docx 关键词1 关键词2
+python scripts/render_diff.py before.pdf after.pdf --out out/
 ```
 
-工具定位与像素 diff 统一由脚本处理，不要在文档里写死本机路径：
-
-```bash
-python scripts/render_check.py out/input.docx 关键词1 关键词2   # 文本冒烟（PDF 写临时目录）
-python scripts/render_diff.py before.pdf after.pdf --out out/    # 像素 diff，差异图落盘
-```
-
-两者都按「环境变量 → PATH → 常见安装路径」定位外部工具（`specs.find_soffice` /
-`specs.find_pdftoppm`），可用 `MATHDOC_SOFFICE` / `PDFTOPPM` 覆盖。
-
-Windows 上**必须指向原生 `pdftoppm.exe`**，不要用 `.cmd` 包装器 —— 本环境会报
-“找不到路径”。`specs.find_pdftoppm` 已自动跳过 `.cmd` / `.bat`。
-
-如果只改公式，优先裁剪公式所在区域再 diff，避免正文排版噪声影响判断。
+工具定位由 `specs.find_soffice()` / `find_pdftoppm()` 处理，可用 `MATHDOC_SOFFICE` / `PDFTOPPM` 覆盖；Windows 上必须指向原生 `pdftoppm.exe`，不要用 `.cmd`。只改公式时优先裁剪公式区域再 diff。
 
 ### 字体最终验证（PDF 内嵌字体名）
 
-XML 断言通过 ≠ 渲染字体正确。转 PDF 后读内嵌字体名核对，例如：
+XML 断言通过 ≠ 渲染字体正确。转 PDF 后读内嵌字体名，例如：
 
 - `FZXBSJW--GB1-0` = 方正小标宋（大标题）
 - `SimHei` = 黑体（章节标题）
 - `SimSun` = 宋体（中文正文）
 - `TimesNewRomanPSMT` = Times New Roman（拉丁/数字）
 
-字体名带 `+` 前缀是 PDF 子集标记，属正常；缺字体会出现替代字体（如 `LiberationSerif`、`NotoSerifSC`）。必要时 300dpi 放大看字形（宋体骨架带衬线 vs 黑体无衬线），不能只信 validator 的 OK。
+字体名带 `+` 前缀是 PDF 子集标记，属正常；缺字体会出现替代字体（如 `LiberationSerif`、`NotoSerifSC`）。必要时 300dpi 放大看字形，不能只信 validator 的 OK。
+
+## Empty m:e 排查
+
+B2 报错时先查两类已知来源，规则分别见 `references/omml.md`：
+
+1. 裸 `|...|` 绝对值 → 生成侧写 `\left|...\right|`。
+2. `\left(-x\right)` 这类定界符内以正负号开头 → 写 `\left({-}x\right)`。

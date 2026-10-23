@@ -114,6 +114,10 @@ def main() -> None:
     parser.add_argument('docx', type=Path, help='generated .docx file')
     parser.add_argument('--source', type=Path, help='source markdown/LaTeX file, if kept')
     parser.add_argument('--level', type=int, choices=(1, 2, 3), default=2)
+    parser.add_argument(
+        '--style-source', choices=('default', 'baseline', 'user'), default='default',
+        help='文档格式来源，透传给 validator；baseline/user 跳过默认样式断言',
+    )
     parser.add_argument('--report', type=Path, default=Path('validation-report.md'),
                         help='output validation report path')
     args = parser.parse_args()
@@ -121,7 +125,7 @@ def main() -> None:
     engine_ok, engine_desc = probe_engine()
 
     try:
-        checks = validate_docx(args.docx, level=args.level)
+        checks = validate_docx(args.docx, level=args.level, style_source=args.style_source)
     except (AssertionError, FileNotFoundError) as exc:
         # 校验失败也要留报告：收件人需要知道失败在哪一项，而不是只看到终端一行字。
         write_report(args.report, args.docx, args.source, args.level,

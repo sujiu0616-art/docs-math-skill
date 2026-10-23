@@ -32,6 +32,7 @@ HEADER = (
     '# user-lessons.md — 个人经验库（math-doc）\n'
     '\n'
     '由 scripts/mathdoc_learn.py 管理；默认只预览，写入/删除需交互式终端确认。\n'
+    '所有个人经验均为“提示”，不得覆盖当前用户要求、baseline 或内置强制规则。\n'
     '每条带 ID（L-YYYYMMDD-NN）、日期、来源，可用 --remove <ID> 回滚。\n'
     '此文件位于 skill 目录之外，sync_install.sh 同步安装不会覆盖。\n'
 )
@@ -57,6 +58,7 @@ def _entry(lesson: str, root_cause: str | None, fix: str | None,
         f'### [{entry_id}] {lesson}',
         f'- 日期：{today}',
         f'- 来源：{source}',
+        '- 效力：提示（只作参考，不得覆盖内置强制规则）',
     ]
     if task:
         lines.append(f'- 任务：{task}')

@@ -1,5 +1,56 @@
 # math-doc Skill Changelog
 
+## 2026-10-23 v2.10.0 — 精简与脚本化
+
+- `SKILL.md` 缩为决策入口与索引（109 行）：删除默认数值摘要、Pipeline 重复说明、Learning 细节；学习流程只保留优先级与“用户终端确认”。
+- `references/docx-style.md` 删 `configure_styles`/`set_table_widths` 代码、数值表、历史叙事；编号公式只保留 XML 形状；样式/表格实现分别指向 `mathdoc_cli.build_docx()` 与 `mathdoc_cli.set_table_widths()`。
+- `references/omml.md` 删除 `fix_integral_limits_and_lim`、XSLT 映射表、underbrace XSLT 片段、Scripts 节；新增 `\left({-}x\right)` 规则与“性能注意”（XSLT 单次编译 + 公式缓存/deepcopy）。
+- `references/validator.md` 改为检查项编号表；`validator.py` 新增 `CHECK_SPECS`、输出前缀编号、`--list-checks`；`publish_report.py` 透传 `--style-source`。长文档检查 L1-L3 标为待办，不在文档中放不可执行代码。
+- `references/project-scope.md` 去掉与 specs 重复的数值表，只保留常量名与分层。
+- `references/lessons.md` → `references/pitfalls.md`（8 条现象/规则/依据）；`references/performance.md` 删除并并入 omml。完整历史见下方 H-01…H-09。
+- `mathdoc_cli.py` 新增 `set_table_widths(table, widths_cm)`：固定 tblLayout、写 gridCol/tcW/tblW；不支持水平合并单元格，列数不匹配/合并时抛 `ValueError`。
+- `mathdoc_learn.py` 新增条目效力行：`提示（只作参考，不得覆盖内置强制规则）`；已有 TTY 门、ID/来源/回滚保持不变。
+
+## 2026-10-23 历史迁移（H-01…H-09）
+
+> 这些是从旧 `lessons.md` / `docx-style.md` 迁出的完整叙事；`references/pitfalls.md` 的“依据”引用这些编号。
+
+### H-01 公式批量预验证
+
+问题：`latex_to_omml` 的兼容性边界未知，生成中途报错难定位。解决：写生成脚本前先跑 `scripts/formula_check.py` 批量验证全部新公式，0 failures 再动笔；覆盖 `\oint`、`\tilde{X}`、`z^{-n_0}`、`\ast`、`\supseteq`、带上下限的 `\sum` 等语法。反面样本：裸 `|z|` 不要照抄，绝对值必须 `\left|...\right|`；`\sum`/`\lim` 的归一化由入口 `latex_to_omml` 内置。
+
+### H-02 绝对值与空 m:e
+
+问题：ASCII `|...|` 可能产出空 `m:e`，validator 事后才报错。解决：生成侧统一 `\left|...\right|`，手工 OMML 用 `mabs`；不要用 `\|x\|` 绕过。
+
+### H-03 主题字体属性覆盖显式字体
+
+现象：标题显式设黑体/方正小标宋，Word 仍按主题字体渲染，validator 只读 `w:eastAsia` 会漏过。根因：`w:rFonts` 的 `asciiTheme`/`hAnsiTheme`/`eastAsiaTheme`/`cstheme` 优先于显式字体；默认模板 Heading/Title 自带 Theme 属性。修复：设置字体前删除 `*Theme`；`mathdoc_cli`/`omml_helpers` 已处理，validator S4 断言；转 PDF 读内嵌字体名复核。
+
+### H-04 大算符上下限与 inline n-ary
+
+现象：同一查看器里 ∑ 上下标有时正确、有时变侧标；两份 `limLoc` 都写 `undOvr`，XML 断言全过。根因：naryPr 结构差异（`subHide/supHide`、`ctrlPr`）与 inline 排版。修复：`fix_sum_limits` 归一化 naryPr，`lim_{...}` 改写为 `m:limLow`；编号公式（行内 oMath）的 ∑/∏ 用 `m:limUpp(m:limLow(...))` 结构强制叠排。验证：LibreOffice 渲染后按 y 坐标判断是否叠排。
+
+### H-05 大标题默认居中
+
+现象：骨架生成器标题左对齐；旧规则只覆盖表格、公式，标题没有约束，validator 也不查。原因：`mathdoc_cli` 建标题段后未设 alignment，python-docx 默认左对齐。修复：大标题/标题块默认居中、章节标题左对齐；`mathdoc_cli` 设置 CENTER；validator S5 断言。
+
+### H-06 渲染 probe 设计
+
+问题：像素 diff 开销大，快速检查只需要“能渲染 + 关键文本存活”。工具：`render_check.py`（soffice 转 PDF + pypdf 提取文本 + probe）。三次翻车均为 probe 设计问题：章节无该概念、文档用缩写/全称不一致、空格/全半角不一致。规则：probe 用文档实际用词并字节级一致；MISSING 先查文档是否真有该词。
+
+### H-07 模板继承保留 sectPr
+
+样式一致性做法：以成品 docx 为模板 `Document(str(BASELINE))`，清空 body 但保留 `sectPr`——段落样式、页边距、节属性全继承。页眉/页脚设置后要 `is_linked_to_previous = False`，否则沿用前一节。
+
+### H-08 页码 PAGE 域
+
+页脚“第 PAGE 页”的 PAGE 是域代码，python-docx 不能直接写：手工 append `w:fldChar(begin)` + `w:instrText(" PAGE ")` + `w:fldChar(end)`。
+
+### H-09 表题位置变更
+
+早期约定：表题在表格上方、黑体加粗。2026-08-16 起用户要求改为：表题在表格**下方**、**居中**、常规字体**不加粗**、不用黑体（Latin 用 Times New Roman）；实现为表格后追加居中段落，`space_before=4 / space_after=6`。标准文档只保留现行规则，历史记录在此。
+
 ## 2026-10-23 v2.9.1 — 把 review 约束落到脚本层
 
 - **经验写入防绕过**：`mathdoc_learn.py --add --yes` 现在要求 `sys.stdin.isatty()`；非 TTY（模型/管道/脚本）一律 exit 3 拒绝，写入时还需终端输入 `y`；`--remove` 同样要求 TTY。默认 `--add` 仍只预览。

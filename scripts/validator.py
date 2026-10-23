@@ -4,6 +4,7 @@
 Usage:
     python validator.py path.docx --level 2
     python validator.py path.docx --level 2 --style-source baseline
+    python validator.py --list-checks
 
 Exit code 0 means the document passed the requested checks.
 
@@ -32,6 +33,26 @@ from specs import (  # noqa: E402
     THEME_FONT_ATTRS,
     expected_lim_loc,
 )
+
+#: 校验项编号 -> 含义。validator.md 的检查项表必须与本表一致；
+#: 输出/失败信息统一带编号，文档与脚本对不上时可直接按编号发现。
+CHECK_SPECS = {
+    'B1': '存在 OMML 公式',
+    'B2': '无空 m:e',
+    'B3': 'lim 使用 m:limLow',
+    'B4': '无 Markdown 残留',
+    'B5': '无首尾空格',
+    'M1': 'n-ary limLoc 正确',
+    'M2': '编号公式 n-ary 已结构化（stack_limits）',
+    'S1': 'Normal 字体符合默认（default 专属）',
+    'S2': 'Heading 字体符合默认（default 专属）',
+    'S3': 'Title 字体符合默认（default 专属）',
+    'S4': '无主题字体属性（default 专属）',
+    'S5': '大标题居中（default 专属）',
+    'T1': '表格网格有效',
+    'T2': '表头样式符合默认（default 专属）',
+    'P1': '页面尺寸有效',
+}
 
 
 def collect_stats(doc_or_path) -> dict:
@@ -78,36 +99,37 @@ def check_basic(doc: Document) -> list[str]:
 
     stats = collect_stats(doc)
     if stats['equations'] == 0:
-        raise AssertionError('no OMML equations found')
-    checks.append(f"equations={stats['equations']}")
+        raise AssertionError('[B1] no OMML equations found')
+    checks.append(f"[B1] equations={stats['equations']}")
 
     empty_e = [e for e in body.iter(qn('m:e')) if not e.getchildren()]
     if empty_e:
         raise AssertionError(
-            f'{len(empty_e)} empty m:e elements; '
+            f'[B2] {len(empty_e)} empty m:e elements; '
             'check bare |...| absolute values and use \\left|...\\right|'
         )
-    checks.append('no empty m:e')
+    checks.append('[B2] no empty m:e')
 
     for ssub in body.iter(qn('m:sSub')):
         if ''.join(ssub.itertext()).startswith('lim'):
-            raise AssertionError('lim must use m:limLow, not m:sSub')
+            raise AssertionError('[B3] lim must use m:limLow, not m:sSub')
+    checks.append('[B3] lim m:limLow ok')
 
     for t_el in body.iter(qn('w:t')):
         t = t_el.text or ''
         if _in_code_block(t_el):
             continue
         if '**' in t:
-            raise AssertionError(f"stray ** in text: {t[:60]}")
+            raise AssertionError(f"[B4] stray ** in text: {t[:60]}")
         if '$' in t:
             has_cjk = any('\u4e00' <= c <= '\u9fff' for c in t)
             if has_cjk and '...' not in t:
-                raise AssertionError(f"suspicious $ in CJK context: {t[:60]}")
+                raise AssertionError(f"[B4] suspicious $ in CJK context: {t[:60]}")
         if t != t.strip():
-            raise AssertionError(f"leading/trailing space in text: {t[:60]}")
+            raise AssertionError(f"[B5] leading/trailing space in text: {t[:60]}")
 
-    checks.append('no markdown residue')
-    checks.append('no leading/trailing spaces')
+    checks.append('[B4] no markdown residue')
+    checks.append('[B5] no leading/trailing spaces')
     return checks
 
 
@@ -119,8 +141,8 @@ def check_math_layout(doc: Document) -> list[str]:
         op = chr_el.get(qn('m:val')) if chr_el is not None else None
         expected = expected_lim_loc(op)
         if expected and (lim_el is None or lim_el.get(qn('m:val')) != expected):
-            raise AssertionError(f'{op} must use limLoc={expected}')
-    return ['nary limits ok']
+            raise AssertionError(f'[M1] {op} must use limLoc={expected}')
+    return ['[M1] nary limits ok']
 
 
 def _style_east_asia(doc: Document, style_name: str):
@@ -171,7 +193,7 @@ def check_title_alignment(doc: Document) -> None:
         effective = _effective_alignment(paragraph)
         if effective != WD_ALIGN_PARAGRAPH.CENTER:
             raise AssertionError(
-                'document title must be centered '
+                '[S5] document title must be centered '
                 f'(paragraph {index}, got alignment={effective})'
             )
 
@@ -197,14 +219,14 @@ def check_theme_fonts(doc: Document) -> None:
         present = _theme_font_attrs(rfonts)
         if present:
             raise AssertionError(
-                f'style {name} has theme font attributes ({", ".join(present)}); '
+                f'[S4] style {name} has theme font attributes ({", ".join(present)}); '
                 'Word uses theme fonts over explicit w:rFonts — remove *Theme attrs before setting explicit fonts'
             )
     for rfonts in doc.element.body.iter(qn('w:rFonts')):
         present = _theme_font_attrs(rfonts)
         if present:
             raise AssertionError(
-                f'run-level w:rFonts has theme font attributes ({", ".join(present)}); '
+                f'[S4] run-level w:rFonts has theme font attributes ({", ".join(present)}); '
                 'explicit fonts will be ignored — remove *Theme attrs'
             )
 
@@ -235,7 +257,7 @@ def check_numbered_equation_nary(doc: Document) -> None:
                 if nary.find(qn('m:sub')) is None or nary.find(qn('m:sup')) is None:
                     continue
                 raise AssertionError(
-                    f'numbered equation (paragraph {index}) still uses m:nary for {char}; '
+                    f'[M2] numbered equation (paragraph {index}) still uses m:nary for {char}; '
                     'Word renders inline n-ary limits as side scripts — '
                     'build it with latex_to_omml(..., stack_limits=True) (m:limUpp/m:limLow)'
                 )
@@ -249,7 +271,7 @@ def check_academic(doc: Document, style_source: str = 'default') -> list[str]:
         # 正文中文字体须与 specs 的默认约定一致。
         east = _style_east_asia(doc, 'Normal')
         if east != FONT_BODY_CN:
-            raise AssertionError(f'Normal eastAsia must be {FONT_BODY_CN} (got {east!r})')
+            raise AssertionError(f'[S1] Normal eastAsia must be {FONT_BODY_CN} (got {east!r})')
 
         normal = doc.styles['Normal']
         rpr = normal.element.find(qn('w:rPr'))
@@ -257,48 +279,48 @@ def check_academic(doc: Document, style_source: str = 'default') -> list[str]:
         if rfonts is not None and (
             rfonts.get(qn('w:ascii')) != FONT_LATIN or rfonts.get(qn('w:hAnsi')) != FONT_LATIN
         ):
-            raise AssertionError(f'Normal Latin/digits must be {FONT_LATIN}')
-        checks.append('Normal font ok')
+            raise AssertionError(f'[S1] Normal Latin/digits must be {FONT_LATIN}')
+        checks.append('[S1] Normal font ok')
 
         for name in ('Heading 1', 'Heading 2', 'Heading 3'):
             if name not in doc.styles:
                 continue
             if _style_east_asia(doc, name) != FONT_HEADING_CN:
-                raise AssertionError(f'{name} eastAsia must be {FONT_HEADING_CN}')
+                raise AssertionError(f'[S2] {name} eastAsia must be {FONT_HEADING_CN}')
             style = doc.styles[name]
             rpr = style.element.find(qn('w:rPr'))
             rfonts = rpr.find(qn('w:rFonts')) if rpr is not None else None
             if rfonts.get(qn('w:ascii')) != FONT_LATIN or rfonts.get(qn('w:hAnsi')) != FONT_LATIN:
-                raise AssertionError(f'{name} Latin/digits must be {FONT_LATIN}')
+                raise AssertionError(f'[S2] {name} Latin/digits must be {FONT_LATIN}')
             if name == 'Heading 2' and style.font.bold is not True:
-                raise AssertionError('Heading 2 must be bold')
-        checks.append('Heading fonts ok')
+                raise AssertionError('[S2] Heading 2 must be bold')
+        checks.append('[S2] Heading fonts ok')
 
         # 大标题检查：仅当文档实际使用了 Title 样式段落时生效。
         if any(p.style.name == 'Title' for p in doc.paragraphs):
             if _style_east_asia(doc, 'Title') != FONT_TITLE_CN:
-                raise AssertionError(f'Title eastAsia must be {FONT_TITLE_CN}')
-        checks.append('Title font ok')
+                raise AssertionError(f'[S3] Title eastAsia must be {FONT_TITLE_CN}')
+        checks.append('[S3] Title font ok')
 
         check_theme_fonts(doc)
-        checks.append('no theme font attrs')
+        checks.append('[S4] no theme font attrs')
 
         check_title_alignment(doc)
-        checks.append('title alignment ok')
+        checks.append('[S5] title alignment ok')
     else:
-        checks.append(f'style-source={style_source}: skipped default font/title/theme assertions')
+        checks.append(f'[note] style-source={style_source}: skipped S1-S5/T2 default style assertions')
 
     check_numbered_equation_nary(doc)
-    checks.append('numbered nary stacked ok')
+    checks.append('[M2] numbered nary stacked ok')
 
     for table in doc.tables:
         grid = table._tbl.tblGrid
         cols = grid.findall(qn('w:gridCol')) if grid is not None else []
         actual = [int(c.get(qn('w:w'), 0)) for c in cols]
         if len(actual) != len(table.columns):
-            raise AssertionError('tblGrid column count mismatch')
+            raise AssertionError('[T1] tblGrid column count mismatch')
         if not all(w > 0 for w in actual):
-            raise AssertionError('tblGrid contains zero-width columns')
+            raise AssertionError('[T1] tblGrid contains zero-width columns')
 
         if not strict_style:
             continue
@@ -307,9 +329,9 @@ def check_academic(doc: Document, style_source: str = 'default') -> list[str]:
             continue
         first_tr_pr = rows[0].find(qn('w:trPr'))
         if first_tr_pr is None or first_tr_pr.find(qn('w:tblHeader')) is None:
-            raise AssertionError('first table row must repeat as header')
+            raise AssertionError('[T2] first table row must repeat as header')
         if first_tr_pr.find(qn('w:cantSplit')) is None:
-            raise AssertionError('header row must be cantSplit')
+            raise AssertionError('[T2] header row must be cantSplit')
 
         for tc in rows[0].findall(qn('w:tc')):
             tc_pr = tc.find(qn('w:tcPr'))
@@ -317,7 +339,7 @@ def check_academic(doc: Document, style_source: str = 'default') -> list[str]:
                 continue
             shd = tc_pr.find(qn('w:shd'))
             if shd is None or shd.get(qn('w:fill')) != TABLE_HEADER_FILL:
-                raise AssertionError(f'header cells must use fill {TABLE_HEADER_FILL}')
+                raise AssertionError(f'[T2] header cells must use fill {TABLE_HEADER_FILL}')
             v_align = tc_pr.find(qn('w:vAlign'))
             if v_align is None or v_align.get(qn('w:val')) != 'center':
                 raise AssertionError('cells must use vAlign=center')
@@ -329,10 +351,10 @@ def check_academic(doc: Document, style_source: str = 'default') -> list[str]:
                     continue
                 v_align = tc_pr.find(qn('w:vAlign'))
                 if v_align is None or v_align.get(qn('w:val')) != 'center':
-                    raise AssertionError('cells must use vAlign=center')
+                    raise AssertionError('[T2] cells must use vAlign=center')
 
-    checks.append(f'tables={len(doc.tables)} grid ok'
-                  + ('' if strict_style else f' (header style checks skipped, source={style_source})'))
+    checks.append(f'[T1] tables={len(doc.tables)} grid ok'
+                  + ('' if strict_style else f' (T2 header style checks skipped, source={style_source})'))
     return checks
 
 
@@ -348,20 +370,28 @@ def validate_docx(path: str | Path, level: int = 1, style_source: str = 'default
     if level >= 3:
         for section in doc.sections:
             if section.page_width.cm < 10 or section.page_height.cm < 10:
-                raise AssertionError('page size looks invalid')
-        checks.append('page size ok')
+                raise AssertionError('[P1] page size looks invalid')
+        checks.append('[P1] page size ok')
     return checks
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Validate math-doc .docx output.')
-    parser.add_argument('docx', type=Path, help='generated .docx file')
+    parser.add_argument('docx', type=Path, nargs='?', help='generated .docx file')
     parser.add_argument('--level', type=int, choices=(1, 2, 3), default=1)
     parser.add_argument(
         '--style-source', choices=('default', 'baseline', 'user'), default='default',
         help='文档格式来源：default=按本 skill 默认断言；baseline/user=跳过默认字体/主题/标题/表头样式断言',
     )
+    parser.add_argument('--list-checks', action='store_true', help='打印检查项编号与含义后退出')
     args = parser.parse_args()
+
+    if args.list_checks:
+        for check_id, desc in CHECK_SPECS.items():
+            print(f'{check_id}\t{desc}')
+        return
+    if args.docx is None:
+        parser.error('缺少 docx 路径（除非使用 --list-checks）')
 
     try:
         checks = validate_docx(args.docx, level=args.level, style_source=args.style_source)

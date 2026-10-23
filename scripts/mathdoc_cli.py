@@ -10,8 +10,9 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Cm, Inches, Pt, RGBColor
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from latex_to_omml import latex_to_omml  # noqa: E402
@@ -153,6 +154,52 @@ def add_numbered_equation(doc, latex, alttext=None, counter=None):
     p._element.append(copy.deepcopy(omml))
     p.add_run('\t' + f'({counter[0]})')
     return p
+
+
+def set_table_widths(table, widths_cm) -> None:
+    """把简单表格固定为指定列宽（cm），同时写 tblGrid/gridCol、tcW、tblW。
+
+    只支持不含水平合并（w:gridSpan）的简单表；列数不匹配或存在合并单元格时
+    抛 ValueError，避免静默写出错误网格。规则说明见 references/docx-style.md。
+    """
+    if len(widths_cm) != len(table.columns):
+        raise ValueError('widths_cm length must match table column count')
+    for tr in table._tbl.findall(qn('w:tr')):
+        for tc in tr.findall(qn('w:tc')):
+            tc_pr = tc.find(qn('w:tcPr'))
+            if tc_pr is not None and tc_pr.find(qn('w:gridSpan')) is not None:
+                raise ValueError('set_table_widths does not support merged cells')
+
+    twips = [int(round(cm * 567)) for cm in widths_cm]
+    table.autofit = False
+    tbl_pr = table._tbl.tblPr
+    for existing in tbl_pr.findall(qn('w:tblLayout')):
+        tbl_pr.remove(existing)
+    layout = OxmlElement('w:tblLayout')
+    layout.set(qn('w:type'), 'fixed')
+    tbl_pr.append(layout)
+
+    grid = table._tbl.tblGrid
+    cols = grid.findall(qn('w:gridCol')) if grid is not None else []
+    if len(cols) != len(widths_cm):
+        raise ValueError('tblGrid column count does not match widths_cm')
+    for col, width in zip(cols, twips):
+        col.set(qn('w:w'), str(width))
+        col.set(qn('w:type'), 'dxa')
+
+    tbl_w = tbl_pr.find(qn('w:tblW'))
+    if tbl_w is None:
+        tbl_w = OxmlElement('w:tblW')
+        tbl_pr.append(tbl_w)
+    tbl_w.set(qn('w:w'), str(sum(twips)))
+    tbl_w.set(qn('w:type'), 'dxa')
+
+    for row in table.rows:
+        cells = row.cells
+        if len(cells) != len(widths_cm):
+            raise ValueError('row cell count does not match widths_cm (merged cells?)')
+        for cell, cm in zip(cells, widths_cm):
+            cell.width = Cm(cm)
 
 
 def build_docx(template_name: str, title: str, author: str, doc_date: str) -> Document:

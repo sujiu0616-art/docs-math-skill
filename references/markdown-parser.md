@@ -49,6 +49,8 @@ Markdown 段落内单个 `\n` 是空格，不是硬换行。用 `' '.join()` 合
 
 ## Mixed text and math paragraphs
 
+> 以下为示意代码，非直接可运行。
+
 `segments` 约定：`('t', 中文)`、`('m', [omml children])`、`('b', 粗体)`。
 
 ```python
