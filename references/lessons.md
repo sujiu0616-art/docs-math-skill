@@ -76,6 +76,13 @@
 - 修复：文档规定大标题/标题块元信息默认居中、章节标题左对齐；`mathdoc_cli` 标题与 meta 段落设 `CENTER`；validator level 2 断言（Title 样式段落，或带「方正小标宋简体」run 的段落，按有效对齐判定）。
 - 教训：格式规则要覆盖**文档级标题与标题块**，不能只写正文/表格/公式；"没写规则"的默认值会被当成设计。
 
+## 11. 编号公式里的 n 元算子会被当行内排侧标（2026-10-23）
+
+- 现象：编号公式（行内 oMath + 右制表位编号）里的 ∑ 上下限被压到右侧角标；`limLoc="undOvr"` 正常、validator 的 XML 断言也通过。
+- 根因：Word 把「公式 + 制表位 + 编号」整段按 inline math 排版；`limLoc` 对 inline n-ary 不生效——XML 属性存在不等于渲染生效。
+- 修复：∑/∏ 用 `m:limUpp(m:limLow(算子, 下限), 上限)` 结构替代 `m:nary`（没有 inline/display 之分，强制叠排）；编号公式算子字号提到 14pt，避免 11pt 算子配放大分式偏小。`latex_to_omml(..., stack_limits=True)` 已封装，`mathdoc_cli.add_numbered_equation` 默认使用；validator 会拦截编号公式里的 nary。
+- 验证：结构断言（无 nary、有 limUpp/limLow）+ 渲染 PDF 目视；Word 与 LibreOffice 对 limUpp 的排版略有差异，最终以 Word 为准。
+
 ## 与 skill 现有能力的关系
 
 | 经验 | 状态 |

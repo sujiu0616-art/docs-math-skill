@@ -171,6 +171,7 @@ def set_table_widths(table, widths_cm):
 - 独立公式段落：段落对齐 `CENTER` + 右侧制表位放编号；`mathdoc_cli.add_numbered_equation` 即此实现，编号制表位 = 版心右边界（页宽 − 左右页边距）。
 - 仅含公式的段落会被 Word 当作 display math，水平位置还受 `m:oMathParaPr/m:jc` 影响（默认 `centerGroup`）；需要整段左/右对齐时按模板/用户要求显式覆盖，并在交付说明中注明。
 - 多行公式用 `aligned`（生成侧自动改写为 `array{rl}` → OMML `m:m`）作为单个公式块，不要拆成多段分别居中。
+- **编号公式的 inline 陷阱**：编号若用「行内 `m:oMath` + 右制表位 `(n)`」，Word 会把整条公式当 inline math：`naryPr/limLoc` 不生效，∑/∏ 上下限被压成侧标。解决：编号公式用 `latex_to_omml(..., stack_limits=True)`，把 ∑/∏ 结构化为 `m:limUpp(m:limLow(算子, 下限), 上限)`（没有 inline/display 之分，强制叠排）；算子字号默认提到 14pt（`specs.DISPLAY_OPERATOR_SIZE_PT`），避免 11pt 算子配放大分式偏小。
 
 ## Baseline Extraction
 

@@ -87,6 +87,18 @@ def fix_integral_limits_and_lim(body):
 
 `fix_sum_limits()` 不能无脑把全部 `nary` 改成 `undOvr`；生成后应定向修正积分和 `lim`。
 
+## Inline-Numbered Equations and n-ary Limits
+
+编号公式常用「行内 `m:oMath` + 右制表位 `(n)`」实现（`mathdoc_cli.add_numbered_equation`）。此时 Word 把公式当 **inline math**：`naryPr/limLoc` 不生效，∑/∏ 上下限会被压到右侧当角标，XML 断言 `limLoc=undOvr` 也拦不住（属性存在 ≠ 渲染生效）。
+
+修复：把 n 元算子结构化为
+
+```text
+m:limUpp( m:limLow(算子, 下限), 上限 )
+```
+
+而不是 `m:nary`。该结构没有 inline/display 之分，Word/LO 都只能把上下限叠排；生成侧入口 `latex_to_omml(..., stack_limits=True, operator_size_pt=14)` 已封装，编号公式默认走它。∫ 保持侧边角标，不要结构化。
+
 ## Inline Math Must Be OMML
 
 正文行内数学和展示公式使用同一套 OMML 规则。禁止 Unicode 凑角标、正体变量、ASCII `|` 代替绝对值。

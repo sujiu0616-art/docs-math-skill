@@ -70,6 +70,9 @@ HEADING_SPACE_AFTER_PT = {1: 10, 2: 7, 3: 5}
 TITLE_SIZE_PT = 22
 META_SIZE_PT = 10
 
+#: 编号独立公式的 ∑/∏ 算子字号（正文 11pt 时，11pt 算子配放大分式会显小）。
+DISPLAY_OPERATOR_SIZE_PT = 14
+
 #: 标题颜色（H1/H2 标题蓝，H3 深蓝）；灰色用于模板元信息行。
 COLOR_TITLE_BLUE = '2E74B5'
 COLOR_DARK_BLUE = '1F4D78'

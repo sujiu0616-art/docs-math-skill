@@ -14,6 +14,7 @@ n-ary 上下限与 naryPr 归一化。文档里"必须走入口、不要绕过"�
 """
 from __future__ import annotations
 
+import copy
 import os
 
 import latex2mathml.converter
@@ -167,12 +168,121 @@ def fix_sum_limits(omml_el):
     return omml_el
 
 
-def latex_to_omml(latex_str, alttext=None, fix_limits=True):
+def _m_tag(tag):
+    return f'{{{M_NS}}}{tag}'
+
+
+def _w_tag(tag):
+    return f'{{{W_NS}}}{tag}'
+
+
+def _make_operator_run(char, size_pt=None):
+    """构造数学算子 run（∑/∏）；size_pt 指定时写入 w:rPr 字号。"""
+    run = etree.Element(_m_tag('r'))
+    mrpr = etree.SubElement(run, _m_tag('rPr'))
+    sty = etree.SubElement(mrpr, _m_tag('sty'))
+    sty.set(_m_tag('val'), 'p')
+    if size_pt is not None:
+        wrpr = etree.SubElement(run, _w_tag('rPr'))
+        rfonts = etree.SubElement(wrpr, _w_tag('rFonts'))
+        rfonts.set(_w_tag('ascii'), 'Cambria Math')
+        rfonts.set(_w_tag('hAnsi'), 'Cambria Math')
+        sz = etree.SubElement(wrpr, _w_tag('sz'))
+        sz.set(_w_tag('val'), str(int(round(size_pt * 2))))
+        szcs = etree.SubElement(wrpr, _w_tag('szCs'))
+        szcs.set(_w_tag('val'), str(int(round(size_pt * 2))))
+    t = etree.SubElement(run, _m_tag('t'))
+    t.text = char
+    return run
+
+
+def _limit_children(nary, tag):
+    el = nary.find(_m_tag(tag))
+    return list(el) if el is not None else []
+
+
+def _stacked_nary(nary, operator_size_pt=None):
+    """nary -> limUpp(limLow(算子, 下限), 上限) + 操作数；无上下限时返回 None。"""
+    nary_pr = nary.find(_m_tag('naryPr'))
+    char = '∑'
+    if nary_pr is not None:
+        chr_el = nary_pr.find(_m_tag('chr'))
+        if chr_el is not None and chr_el.get(_m_tag('val')):
+            char = chr_el.get(_m_tag('val'))
+    lower = _limit_children(nary, 'sub')
+    upper = _limit_children(nary, 'sup')
+    if not lower and not upper:
+        return None
+    op_run = _make_operator_run(char, operator_size_pt)
+    lim_low = etree.Element(_m_tag('limLow'))
+    base = etree.SubElement(lim_low, _m_tag('e'))
+    base.append(op_run)
+    if lower:
+        lim = etree.SubElement(lim_low, _m_tag('lim'))
+        for child in lower:
+            lim.append(copy.deepcopy(child))
+    if upper:
+        lim_upp = etree.Element(_m_tag('limUpp'))
+        e = etree.SubElement(lim_upp, _m_tag('e'))
+        if lower:
+            e.append(lim_low)
+        else:
+            e.append(op_run)
+        sup = etree.SubElement(lim_upp, _m_tag('sup'))
+        for child in upper:
+            sup.append(copy.deepcopy(child))
+        result = [lim_upp]
+    else:
+        result = [lim_low]
+    operand = nary.find(_m_tag('e'))
+    if operand is not None:
+        for child in list(operand):
+            result.append(copy.deepcopy(child))
+    return result
+
+
+def stack_nary_limits(omml_el, operator_size_pt=None):
+    """把 ∑/∏ 的上下限从 nary 改成 limUpp/limLow 结构。
+
+    背景：用「行内 oMath + 右制表位编号」做编号公式时，Word 把整条公式当
+    inline math 渲染，naryPr 的 limLoc 不生效，∑/∏ 上下限会被压到右侧当角标。
+    limUpp(limLow(算子, 下限), 上限) 没有 inline/display 之分，Word 与
+    LibreOffice 都只能把上下限叠在算子正上/正下，因此编号公式应走这条路。
+    """
+    for nary in reversed(list(omml_el.iter(_m_tag('nary')))):
+        if nary.getparent() is None:
+            continue
+        nary_pr = nary.find(_m_tag('naryPr'))
+        char = None
+        if nary_pr is not None:
+            chr_el = nary_pr.find(_m_tag('chr'))
+            if chr_el is not None:
+                char = chr_el.get(_m_tag('val'))
+        # 只处理 ∑/∏（limLoc=undOvr）；∫ 仍走侧边角标
+        if char is None or expected_lim_loc(char) != 'undOvr':
+            continue
+        replacement = _stacked_nary(nary, operator_size_pt)
+        if replacement is None:
+            continue
+        parent = nary.getparent()
+        index = parent.index(nary)
+        parent.remove(nary)
+        for offset, element in enumerate(replacement):
+            parent.insert(index + offset, element)
+    return omml_el
+
+
+def latex_to_omml(latex_str, alttext=None, fix_limits=True, stack_limits=False, operator_size_pt=None):
     """把 LaTeX 转成 OMML 元素。**这是唯一需要记住的入口。**
 
     ``fix_limits=True``（默认）时归一化 n-ary 的上下限排布与 naryPr 结构，
     即文档要求的"走入口"。只有调试转换器本身时才传 ``False``，拿未归一化的
     原始 XSLT 结果。
+
+    ``stack_limits=True`` 时把 ∑/∏ 结构化为 ``m:limUpp(m:limLow(...))``，
+    用于「行内 oMath + 制表位编号」的编号公式：Word 把这类公式当 inline math，
+    ``limLoc`` 不生效，只有结构化才能保证上下限叠排。``operator_size_pt``
+    可同时指定算子字号（编号公式默认用 ``specs.DISPLAY_OPERATOR_SIZE_PT``）。
     """
     latex_str = _rewrite_aligned(latex_str)
     mathml = latex2mathml.converter.convert(latex_str)
@@ -180,7 +290,11 @@ def latex_to_omml(latex_str, alttext=None, fix_limits=True):
     omml = _get_xslt()(tree).getroot()
     if alttext:
         omml.set('alttext', alttext)
-    return fix_sum_limits(omml) if fix_limits else omml
+    if fix_limits:
+        omml = fix_sum_limits(omml)
+    if stack_limits:
+        omml = stack_nary_limits(omml, operator_size_pt=operator_size_pt)
+    return omml
 
 
 # ---- 兼容别名 ---------------------------------------------------------------

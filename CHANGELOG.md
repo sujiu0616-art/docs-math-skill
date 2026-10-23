@@ -1,5 +1,14 @@
 # math-doc Skill Changelog
 
+## 2026-10-23 v2.8.6 — 编号公式 n 元算子叠排修复
+
+- **根因**：编号公式用「行内 `m:oMath` + 右制表位 `(n)`」时，Word 按 inline math 排版，`naryPr/limLoc` 不生效，∑/∏ 上下限被压成侧标；XML 断言 `limLoc=undOvr` 拦不住（属性存在 ≠ 渲染生效）。
+- `scripts/latex_to_omml.py`：新增 `stack_limits=True` —— 把 ∑/∏ 的 `m:nary` 结构化为 `m:limUpp(m:limLow(算子, 下限), 上限)` + 操作数，强制叠排；支持 `operator_size_pt` 指定算子字号。未传入时保持原 `m:nary`（行内公式不受影响）。
+- `scripts/specs.py`：新增 `DISPLAY_OPERATOR_SIZE_PT = 14`（编号公式算子字号）。
+- `scripts/mathdoc_cli.py`：`add_numbered_equation` 默认 `stack_limits=True`、算子 14pt。
+- `scripts/validator.py`：level 2 新增检查——含制表位编号的 `m:oMath` 段落里若仍有 ∑/∏ `m:nary`，直接 FAIL 并提示用 `stack_limits=True`。
+- 文档：`SKILL.md`、`references/docx-style.md`、`references/omml.md`（新增 Inline-Numbered Equations 节）、`references/validator.md`、`references/lessons.md`（第 11 节）同步。
+
 ## 2026-10-21 v2.8.5 — 大标题对齐约束
 
 - **缺口**：`docx-style.md` 的 Alignment 只覆盖表格；Font/Page 规定了大标题字体/字号（方正小标宋 22pt）但没规定对齐；`mathdoc_cli` 建标题段落后未设 `alignment`，python-docx 默认左对齐，参考实现把默认值带进产物；validator 也不查。

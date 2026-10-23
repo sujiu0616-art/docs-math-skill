@@ -205,6 +205,38 @@ def check_theme_fonts(doc: Document) -> None:
             )
 
 
+def check_numbered_equation_nary(doc: Document) -> None:
+    """编号公式（行内 oMath + 制表位编号）里的 ∑/∏ 必须结构化为 limUpp/limLow。
+
+    行内 oMath 段落中 Word 按 inline math 排 n-ary，limLoc 不生效，上下限会被压成侧标。
+    XML 层面只能靠“段落里是否还有 nary”来拦（属性存在 ≠ 渲染生效）。
+    """
+    for index, paragraph in enumerate(doc.paragraphs, start=1):
+        p = paragraph._p
+        if p.find(qn('m:oMathPara')) is not None:
+            continue
+        omaths = p.findall(qn('m:oMath'))
+        if not omaths:
+            continue
+        has_number_tab = any(run.text and run.text.startswith('\t') for run in paragraph.runs)
+        if not has_number_tab:
+            continue
+        for omath in omaths:
+            for nary in omath.iter(qn('m:nary')):
+                pr = nary.find(qn('m:naryPr'))
+                chr_el = pr.find(qn('m:chr')) if pr is not None else None
+                char = chr_el.get(qn('m:val')) if chr_el is not None else None
+                if char is None or expected_lim_loc(char) != 'undOvr':
+                    continue
+                if nary.find(qn('m:sub')) is None or nary.find(qn('m:sup')) is None:
+                    continue
+                raise AssertionError(
+                    f'numbered equation (paragraph {index}) still uses m:nary for {char}; '
+                    'Word renders inline n-ary limits as side scripts — '
+                    'build it with latex_to_omml(..., stack_limits=True) (m:limUpp/m:limLow)'
+                )
+
+
 def check_academic(doc: Document) -> list[str]:
     checks = check_math_layout(doc)
 
@@ -250,6 +282,9 @@ def check_academic(doc: Document) -> list[str]:
 
     check_title_alignment(doc)
     checks.append('title alignment ok')
+
+    check_numbered_equation_nary(doc)
+    checks.append('numbered nary stacked ok')
 
     for table in doc.tables:
         grid = table._tbl.tblGrid

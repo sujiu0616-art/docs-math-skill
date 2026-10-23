@@ -36,6 +36,7 @@ from specs import (  # noqa: E402
     META_SIZE_PT,
     PAGE_HEIGHT_IN,
     PAGE_WIDTH_IN,
+    DISPLAY_OPERATOR_SIZE_PT,
     THEME_FONT_ATTRS,
     TITLE_SIZE_PT,
 )
@@ -138,7 +139,11 @@ def add_numbered_equation(doc, latex, alttext=None, counter=None):
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(4)
     p.paragraph_format.space_after = Pt(6)
-    omml = latex_to_omml(latex, alttext)
+    # 编号公式是「行内 oMath + 右制表位编号」，Word 会把 ∑/∏ 当 inline 排侧标；
+    # 结构化 limUpp(limLow) 才能保证上下限叠排，并把算子字号提到 14pt。
+    omml = latex_to_omml(
+        latex, alttext, stack_limits=True, operator_size_pt=DISPLAY_OPERATOR_SIZE_PT
+    )
     p._element.append(copy.deepcopy(omml))
     # 编号右对齐到版心右边界（版心宽 = 页宽 - 左右页边距）
     usable_in = PAGE_WIDTH_IN - MARGIN_LEFT_IN - MARGIN_RIGHT_IN

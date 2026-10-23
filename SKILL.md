@@ -1,7 +1,7 @@
 ---
 name: math-doc
 description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.8.5
+version: 2.8.6
 author: user
 last_update: 2026-10-21
 status: production
@@ -68,6 +68,7 @@ For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manu
 - LaTeX 绝对值/范数必须写 `\left|...\right|`；独立公式里的裸 `|X|^2` 会被 latex2mathml 解析成空 `m:e`。手动构造 OMML 时用 `mabs` 分隔符结构。
 - 大算符限位：`∫` 用 `limLoc="subSup"`，`∑`/`∏` 用 `limLoc="undOvr"`（规则表在 `specs.NARY_LIM_LOC`，validator 用同一份断言）；`lim` 用 `m:limLow`，不用 `m:sSub`。
 - 限位的已知边界与结构级改法、`\underbrace` 与 `mstyle` 的处理，见 `references/omml.md`。
+- **编号独立公式的 n 元算子**：用「行内 oMath + 右制表位编号」时 Word 把公式当 inline math，`limLoc` 不生效，∑/∏ 会排成侧标。这类公式必须走 `latex_to_omml(..., stack_limits=True)`（内部改写成 `m:limUpp(m:limLow(算子, 下限), 上限)`），`mathdoc_cli` 已默认；不要在编号公式里依赖 nary 的 `limLoc`。
 - **公式对齐（按场景）**：行内公式随文排版、不居中；独立单行公式与多行对齐组**整体居中**，编号**右对齐**；长公式在关系符/运算符处折行，折行后仍居中、编号在末行右侧；cases/矩阵/行列式独立居中；表格单元格内公式随单元格对齐。用户或期刊/学校模板另有要求（左对齐、编号在左、逐行编号等）时以要求/模板为准。详见 `references/docx-style.md` 的 Equation Alignment。
 
 ### Styles
