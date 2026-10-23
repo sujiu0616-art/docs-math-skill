@@ -4,6 +4,8 @@
 
 把公式密集的 Markdown / LaTeX 生成 **Word 原生 OMML** 文档：公式双击可编辑，中文排版、三级校验、渲染冒烟，整条流水线可执行、可验证。
 
+只交付 Word/.docx；LaTeX/Markdown 作为输入源或中间产物，不套用 Word 版式规则。
+
 ## 特性
 
 - **原生 OMML**：`latex2mathml → MML2OMML.XSL → OMML`，单入口 `latex_to_omml`；裸 `|x|` 等危险写法直接报错。
@@ -11,7 +13,7 @@
 - **生成后校验**：`validator.py --level 1|2|3` 对公式、字体、表格、分页做可执行断言。
 - **渲染验证**：`render_check.py` 文本冒烟，`render_diff.py` 像素 diff。
 - **交付报告**：`publish_report.py` 输出公式数、校验结论与 OMML 引擎来源。
-- **经验沉淀**（可选）：`mathdoc_learn.py` 把踩坑记入 `~/.config/math-doc/user-lessons.md`。
+- **经验沉淀（安全）**：`mathdoc_learn.py` 默认只生成候选条目，用户确认后才写入 `~/.config/math-doc/user-lessons.md`，可用 ID 回滚。
 
 ## 安装
 

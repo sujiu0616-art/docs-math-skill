@@ -1,33 +1,38 @@
-#!/usr/bin/env python3
-"""Append lessons to the user experience file — the "dynamic skill" store.
 
-The skill reads this file automatically before each generation task and
-appends new lessons automatically after each task (see SKILL.md
-"Auto-Learning").  The file lives OUTSIDE the skill directory
-(~/.config/math-doc/user-lessons.md) so sync_install.sh never overwrites it.
+#!/usr/bin/env python3
+"""Manage the math-doc personal lesson store (safe, user-confirmed).
+
+Design goals (2026-10-23 review):
+- 默认只生成候选条目并打印，不写文件；必须加 --yes 才追加。
+- 每条带 ID、日期、来源，便于回滚；--remove <ID> 删除一条。
+- 文件在 skill 目录之外（~/.config/math-doc/user-lessons.md），sync_install.sh 不覆盖。
 
 Usage:
-    python scripts/mathdoc_learn.py --add "教训一句话"
-    python scripts/mathdoc_learn.py --add "问题" --root-cause "根因" --fix "修复" --verify "验证"
-    python scripts/mathdoc_learn.py --add "..." --task "某项目"     # 可选标注任务
+    python scripts/mathdoc_learn.py --add "教训" --root-cause "根因" --fix "修复" --verify "验证" --task "任务"
+        → 只预览，不写入；用户确认后加 --yes
+    python scripts/mathdoc_learn.py --add "..." --yes
     python scripts/mathdoc_learn.py --list
+    python scripts/mathdoc_learn.py --remove L-20261023-01
     python scripts/mathdoc_learn.py --path
 """
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sys
 from datetime import date
 from pathlib import Path
 
-USER_LESSONS = Path.home() / '.config' / 'math-doc' / 'user-lessons.md'
+DEFAULT_PATH = Path.home() / '.config' / 'math-doc' / 'user-lessons.md'
+USER_LESSONS = Path(os.environ.get('MATHDOC_USER_LESSONS') or DEFAULT_PATH)
 
 HEADER = (
-    '# user-lessons.md — 个人经验库（math-doc 自动追加）\n'
+    '# user-lessons.md — 个人经验库（math-doc）\n'
     '\n'
-    '由 `scripts/mathdoc_learn.py` 在每次任务完成时自动追加，下次生成前自动读取。\n'
-    '此文件位于 skill 目录之外，`sync_install.sh` 同步安装不会覆盖。\n'
-    '\n'
+    '由 scripts/mathdoc_learn.py 管理；默认只预览，--yes 后才写入。\n'
+    '每条带 ID（L-YYYYMMDD-NN）、日期、来源，可用 --remove <ID> 回滚。\n'
+    '此文件位于 skill 目录之外，sync_install.sh 同步安装不会覆盖。\n'
 )
 
 
@@ -37,63 +42,125 @@ def _load() -> str:
     return USER_LESSONS.read_text(encoding='utf-8')
 
 
-def add(lesson: str, root_cause: str | None, fix: str | None,
-        verify: str | None, task: str | None) -> None:
-    if not lesson:
-        raise SystemExit('error: --add 需要教训内容')
-    text = _load()
-    if f'- 教训：{lesson}' in text:
-        print(f'skip: 该教训已存在: {lesson[:40]}')
-        return
-    if not text:
-        text = HEADER
-    today = date.today().isoformat()
-    lines = []
+def _next_id(text: str, today: str) -> str:
+    compact = today.replace('-', '')
+    pattern = re.compile(r'\[L-' + re.escape(compact) + r'-(\d+)\]')
+    nums = [int(m.group(1)) for m in pattern.finditer(text)]
+    return f'L-{compact}-{(max(nums) + 1) if nums else 1:02d}'
+
+
+def _entry(lesson: str, root_cause: str | None, fix: str | None,
+           verify: str | None, task: str | None, source: str,
+           entry_id: str, today: str) -> str:
+    lines = [
+        f'### [{entry_id}] {lesson}',
+        f'- 日期：{today}',
+        f'- 来源：{source}',
+    ]
     if task:
         lines.append(f'- 任务：{task}')
-    lines.append(f'- 教训：{lesson}')
     if root_cause:
         lines.append(f'- 根因：{root_cause}')
     if fix:
         lines.append(f'- 修复：{fix}')
     if verify:
         lines.append(f'- 验证：{verify}')
-    block = f'\n\n## {today}\n' + '\n'.join(lines) + '\n'
-    if f'## {today}' in text:
-        # insert into today's section: after its last line
-        idx = text.rindex(f'## {today}')
-        end = text.find('\n## ', idx + 4)
-        end = len(text) if end == -1 else end
-        text = text[:end] + '\n'.join(lines) + '\n' + text[end:]
-    else:
-        text = text.rstrip() + block
-    USER_LESSONS.parent.mkdir(parents=True, exist_ok=True)
-    USER_LESSONS.write_text(text, encoding='utf-8')
-    print(f'appended to {USER_LESSONS}: {lesson[:60]}')
+    return '\n'.join(lines) + '\n'
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='math-doc dynamic skill: manage user lessons.')
-    parser.add_argument('--add', help='教训内容（自动追加，无需手动编辑文件）')
+def _insert(text: str, today: str, entry: str) -> str:
+    if not text.strip():
+        text = HEADER
+    heading = f'## {today}'
+    if heading in text:
+        start = text.index(heading)
+        nxt = text.find('\n## ', start + 1)
+        if nxt == -1:
+            return text.rstrip('\n') + '\n\n' + entry
+        prefix = text[:nxt].rstrip('\n')
+        suffix = text[nxt:].lstrip('\n')
+        return prefix + '\n\n' + entry + '\n' + suffix
+    return text.rstrip('\n') + '\n\n' + heading + '\n\n' + entry
+
+
+def _remove(text: str, entry_id: str) -> tuple[str, bool]:
+    pattern = re.compile(r'^### \[' + re.escape(entry_id) + r'\].*$', re.MULTILINE)
+    m = pattern.search(text)
+    if not m:
+        return text, False
+    start = m.start()
+    next_sub = text.find('\n### [', m.end())
+    next_sec = text.find('\n## ', m.end())
+    candidates = [i for i in (next_sub, next_sec) if i != -1]
+    end = min(candidates) if candidates else len(text)
+    text = text[:start] + text[end:]
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    date_heading = re.search(r'^## \d{4}-\d{2}-\d{2}\s*$', text, re.MULTILINE)
+    if date_heading:
+        start_d = date_heading.start()
+        nxt = text.find('\n## ', start_d + 1)
+        section = text[start_d:(nxt if nxt != -1 else len(text))]
+        if len(section.strip().splitlines()) == 1:
+            text = text[:start_d] + (text[nxt + 1:] if nxt != -1 else '')
+    return text, True
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description='math-doc personal lessons: preview / confirm / rollback.')
+    parser.add_argument('--add', help='教训内容（默认只预览；加 --yes 才写入）')
     parser.add_argument('--root-cause', help='根因')
     parser.add_argument('--fix', help='修复')
     parser.add_argument('--verify', help='验证')
     parser.add_argument('--task', help='任务名（可选）')
+    parser.add_argument('--source', default='用户确认', help='来源（默认：用户确认）')
+    parser.add_argument('--yes', action='store_true', help='确认写入（预览时不加）')
+    parser.add_argument('--remove', metavar='ID', help='删除指定 ID 的条目')
     parser.add_argument('--list', action='store_true', help='打印全部经验')
     parser.add_argument('--path', action='store_true', help='打印经验文件路径')
     args = parser.parse_args()
 
     if args.path:
         print(USER_LESSONS)
-        return
+        return 0
     if args.list:
         text = _load()
         print(text if text else '(empty)')
-        return
+        return 0
+    if args.remove:
+        text = _load()
+        if not text:
+            print('error: user-lessons 不存在', file=sys.stderr)
+            return 1
+        new_text, ok = _remove(text, args.remove)
+        if not ok:
+            print(f'error: 找不到条目 {args.remove}', file=sys.stderr)
+            return 1
+        USER_LESSONS.write_text(new_text, encoding='utf-8')
+        print(f'removed {args.remove}')
+        return 0
     if args.add:
-        add(args.add, args.root_cause, args.fix, args.verify, args.task)
-        return
+        if not args.add.strip():
+            print('error: --add 需要教训内容', file=sys.stderr)
+            return 1
+        text = _load()
+        if f'- 教训：{args.add}' in text or f'] {args.add}' in text:
+            print(f'skip: 该教训已存在: {args.add[:60]}')
+            return 0
+        today = date.today().isoformat()
+        entry_id = _next_id(text, today)
+        entry = _entry(args.add, args.root_cause, args.fix, args.verify,
+                       args.task, args.source, entry_id, today)
+        if not args.yes:
+            print('候选条目（尚未写入）：')
+            print(entry)
+            print('确认后加 --yes 才会写入；回滚用 --remove ' + entry_id)
+            return 2
+        USER_LESSONS.parent.mkdir(parents=True, exist_ok=True)
+        USER_LESSONS.write_text(_insert(text, today, entry), encoding='utf-8')
+        print(f'added {entry_id} to {USER_LESSONS}')
+        return 0
     parser.print_help()
+    return 1
 
 
 if __name__ == '__main__':

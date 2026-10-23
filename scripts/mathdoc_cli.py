@@ -136,18 +136,21 @@ def add_numbered_equation(doc, latex, alttext=None, counter=None):
         counter = [0]
     counter[0] += 1
     p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # 左对齐 + center tab + right tab：公式围绕页面中心，编号贴右边界。
+    # （段落 CENTER 会把编号也一起居中，公式会偏左，不要用。）
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     p.paragraph_format.space_before = Pt(4)
     p.paragraph_format.space_after = Pt(6)
-    # 编号公式是「行内 oMath + 右制表位编号」，Word 会把 ∑/∏ 当 inline 排侧标；
+    usable_in = PAGE_WIDTH_IN - MARGIN_LEFT_IN - MARGIN_RIGHT_IN
+    p.paragraph_format.tab_stops.add_tab_stop(Inches(usable_in / 2), WD_TAB_ALIGNMENT.CENTER)
+    p.paragraph_format.tab_stops.add_tab_stop(Inches(usable_in), WD_TAB_ALIGNMENT.RIGHT)
+    # 编号公式是「行内 oMath + 制表位编号」，Word 会把 ∑/∏ 当 inline 排侧标；
     # 结构化 limUpp(limLow) 才能保证上下限叠排，并把算子字号提到 14pt。
     omml = latex_to_omml(
         latex, alttext, stack_limits=True, operator_size_pt=DISPLAY_OPERATOR_SIZE_PT
     )
+    p.add_run('\t')
     p._element.append(copy.deepcopy(omml))
-    # 编号右对齐到版心右边界（版心宽 = 页宽 - 左右页边距）
-    usable_in = PAGE_WIDTH_IN - MARGIN_LEFT_IN - MARGIN_RIGHT_IN
-    p.paragraph_format.tab_stops.add_tab_stop(Inches(usable_in), WD_TAB_ALIGNMENT.RIGHT)
     p.add_run('\t' + f'({counter[0]})')
     return p
 

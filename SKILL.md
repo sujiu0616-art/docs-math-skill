@@ -1,180 +1,141 @@
 ---
 name: math-doc
-description: Generate mathematical Word documents for any scenario — notes, exercise sets, summaries, reports, proofs, papers — in .docx, LaTeX, or Markdown. Covers OMML rendering via python-docx, Chinese typography and font rules, Markdown-to-docx conversion, formula formatting, equation numbering, and cross-references. Use when the user asks to produce or format any mathematical document or formula-heavy output.
-version: 2.8.8
+description: Generate and validate mathematical Word (.docx) documents — notes, exercise sets, summaries, reports, proofs, papers — with native editable OMML equations, Chinese typography defaults, formula pre-checks, a three-level validator and render QA. Use when the user asks to produce or format a formula-heavy .docx, or needs Markdown/LaTeX converted into a Word deliverable. Standalone LaTeX/Markdown output formatting is out of scope.
+version: 2.9.0
 author: user
-last_update: 2026-10-21
+last_update: 2026-10-23
 status: production
 ---
 
 # math-doc Skill
 
-## Purpose
+## Output Contract
 
-Generate professional mathematical documents for any scenario — lecture notes, exercise sets, summaries, proofs, reports, papers, or anything formula-heavy. Output can be .docx, LaTeX, or Markdown.
+- **主交付**：`.docx`，公式必须是 Word 原生 OMML（双击可编辑）。
+- **LaTeX / Markdown**：源格式输入或中间产物。用户明确要纯 LaTeX/Markdown 时，只输出源文件，并说明这是源格式、不套用 Word 版式规则。
+- 本 skill **不定义** LaTeX/Markdown/HTML 的成品排版规范。
+- 用户要求 / 项目 baseline 的格式优先级高于 skill 默认值；默认值只用于从零新建且用户未提格式要求的文档（细则见 `references/docx-style.md`、`references/project-scope.md`）。
 
 ## Trigger
 
 Use this skill when:
 
-- user requests any mathematical document (notes, exercises, summaries, proofs, reports)
-- user requests a formula-heavy Word document
-- user requests formula formatting or OMML conversion
-- user requests Markdown/LaTeX to .docx generation
+- user requests a mathematical Word document (notes, exercises, summaries, proofs, reports, papers)
+- user requests formula formatting or native OMML conversion
+- user requests Markdown/LaTeX → .docx generation
 - user requests checking the format of a generated math document
 
 ## Decision Priority
 
-1. User explicit requirement
-2. Existing project/file/template constraints
-3. Domain skill rules
-4. General best practice
+1. 用户明确要求
+2. 项目/模板/baseline 约束
+3. 本 skill 默认规则
+4. 通用最佳实践
 
 ## Working Mode
 
-Classify the request:
+- **A. Creation**：从零新建，走完整 pipeline。
+- **B. Modification**：先读结构/样式，再改；不重建整篇文档。
+- **C. Analysis**：解释结构或公式，不重生成。
+- **D. Debugging**：先定位根因（XML/渲染），再修。
+- **E. Research**：先查规范/资料，再动笔。
 
-- A. Creation: full pipeline, build from scratch.
-- B. Modification: inspect structure first, then modify.
-- C. Analysis: explain document structure or formula, do not regenerate.
-- D. Debugging: inspect generated file, find root cause, then fix.
-- E. Research: gather references or conventions before output.
-
-Ask only when missing information affects the result. Otherwise use reasonable defaults.
+Ask only when missing information changes the result.
 
 ## Task Router
 
-- `帮我写证明`、`写讲义`、`整理笔记`、`出习题集` -> math-doc -> ask `需要Word吗？`; if yes, use docx pipeline.
-- `帮我改公式` -> Formula mode: return LaTeX/Markdown unless user asks for .docx.
-- `检查论文格式` -> Validator mode: run `scripts/validator.py` with an appropriate level.
-- 其他任何数学文档请求 -> 同一流水线，按 Working Mode 分类处理。
-- Existing document with a template or baseline -> template/baseline wins.
+- 写证明/讲义/笔记/习题集 → 问是否要 Word；要则走 docx pipeline。
+- 改公式 → 只改公式文本时返回 LaTeX/Markdown；要成品或改已有 docx 则走 docx pipeline。
+- 检查论文格式 → Validator 模式：`scripts/validator.py` 选合适 level。
+- 其他数学文档请求 → 同一 pipeline，按 Working Mode 分类。
+- 已有模板/baseline → template/baseline wins。
 
 ## Pipeline
 
 ```text
-Markdown -> Parser -> LaTeX extraction -> MathML -> OMML -> DOCX
+Markdown / LaTeX source
+  -> parser (references/markdown-parser.md)
+  -> LaTeX formulas
+  -> latex_to_omml (single entry; references/omml.md)
+  -> OMML
+  -> .docx (python-docx)
 ```
 
-For .docx output, always prefer `latex2mathml -> MML2OMML.XSL -> OMML` over manual OMML construction. Manual OMML is only for edge cases documented in `references/omml.md`.
+公式转换细节（aligned、n-ary、绝对值、主题字体、`stack_limits`、括号配对）全部在 `references/omml.md`；本文件只保留决策规则与索引。
 
-## Mandatory Rules
+## Format Priority（铁律）
 
-### Formula
+按序判定，命中即止，**禁止串用**：
 
-- Use `latex2mathml -> OMML` for all math.
-- **单一入口 `latex_to_omml(latex, alttext=None, fix_limits=True)`**：默认已完成 aligned 改写、n-ary 限位与 naryPr 归一化。不要绕过它直接调 `latex2mathml.converter.convert`，也不要手写 limLoc 修补。
-- Never use Unicode composed subscripts/superscripts, plain text formulas, upright variables, or `|x|` as plain text for absolute value.
-- LaTeX 绝对值/范数必须写 `\left|...\right|`；独立公式里的裸 `|X|^2` 会被 latex2mathml 解析成空 `m:e`。手动构造 OMML 时用 `mabs` 分隔符结构。
-- 大算符限位：`∫` 用 `limLoc="subSup"`，`∑`/`∏` 用 `limLoc="undOvr"`（规则表在 `specs.NARY_LIM_LOC`，validator 用同一份断言）；`lim` 用 `m:limLow`，不用 `m:sSub`。
-- 限位的已知边界与结构级改法、`\underbrace` 与 `mstyle` 的处理，见 `references/omml.md`。
-- **编号独立公式的 n 元算子**：用「行内 oMath + 右制表位编号」时 Word 把公式当 inline math，`limLoc` 不生效，∑/∏ 会排成侧标。这类公式必须走 `latex_to_omml(..., stack_limits=True)`（内部改写成 `m:limUpp(m:limLow(算子, 下限), 上限)`），`mathdoc_cli` 已默认；不要在编号公式里依赖 nary 的 `limLoc`。
-- **公式对齐（按场景）**：行内公式随文排版、不居中；独立单行公式与多行对齐组**整体居中**，编号**右对齐**；长公式在关系符/运算符处折行，折行后仍居中、编号在末行右侧；cases/矩阵/行列式独立居中；表格单元格内公式随单元格对齐。用户或期刊/学校模板另有要求（左对齐、编号在左、逐行编号等）时以要求/模板为准。详见 `references/docx-style.md` 的 Equation Alignment。
+1. **用户明确要求**：字体、字号、颜色、间距、对齐、页边距、表格/编号样式等任一项被指定，就以用户要求为唯一约束；默认值与文档原有格式都不得覆盖。
+2. **从零新建且用户未提格式要求**：按本 skill 默认格式（`scripts/specs.py` / `references/docx-style.md`）。
+3. **基于已有文档/模板修改或续写且用户未提要求**：以该文档**原有格式**为基准；默认值只补原文缺失或未定义的属性，不批量覆盖。
 
-### Styles
+禁止：把默认格式套到已有文档；用原文档格式覆盖用户要求；用户只要求局部时扩大到全文；同一文档混搭多套格式。
 
-**格式优先级（铁律：按序判定，命中即止，禁止串用）**
+## Defaults（索引，不是规则全文）
 
-1. **用户明确要求**：任何格式项（字体、字号、颜色、间距、对齐、页边距、表格/编号样式等）只要用户指定，就以用户要求为唯一约束；skill 默认值与文档原有格式都不得覆盖。
-2. **从零新建文档，且用户未提格式要求**：按本 skill 的默认格式（`scripts/specs.py` / `references/docx-style.md`）。
-3. **基于已有文档/模板/样例修改或续写，且用户未提格式要求**：以该文档的**原有格式**为基准（读取其样式与直接格式，沿用原字体、字号、段落、编号、页边距、表格样式等）；skill 默认值只用于补原文缺失或未定义的属性，不得批量覆盖原格式。
+- 字体/字号/行距/颜色/页边距/表格/标题与公式对齐：`references/docx-style.md`；常量集中在 `scripts/specs.py`。
+- 可迁移默认值 vs 某个 baseline 的约定 vs 本机环境路径：`references/project-scope.md`。
+- 新建默认摘要：正文宋体 11pt；标题黑体 16/13/12pt；大标题方正小标宋简体 22pt；Latin Times New Roman。具体取值以 `specs.py` 为准。
+- 禁止：Unicode/纯文本公式、用空格凑格式、把默认格式套到已有文档。
 
-**禁止串用**：
-- 不得把 skill 默认格式套到已有文档上、覆盖原有格式；
-- 不得拿已有文档的格式去覆盖用户的明确要求；
-- 用户只要求局部格式（如某段字号、某个表格）时，只改指定处，不扩大到全文；
-- 同一文档里已有多种格式时，沿用文档主体的那一套，不得混搭。
+## Validation
 
-（以下字体/排版规则均为上述第 2 条的默认值。）
+- **生成前**：`scripts/formula_check.py` 预检全部新公式（0 失败再写生成器）。
+- **生成后**：`scripts/validator.py --level 1|2|3`；level 2 的字体/主题字体/表格断言只适用于“从零新建且用户未要求”的文档，baseline/用户格式例外见 `references/validator.md`。
+- **渲染冒烟（可选）**：LibreOffice + `render_check.py` / `render_diff.py`；无渲染工具时在交付里明确写“渲染未验证”。
+- 交付前自查：公式为原生 OMML 可编辑、无空 `m:e`、编号对齐、无 markdown 残留。
 
-- 字体名以 `scripts/specs.py` 的 `FONT_*` 为单一真相源：正文宋体、标题黑体（Heading 2 必须加粗）、大标题方正小标宋简体、拉丁 Times New Roman。样式级必须显式设 `eastAsia`，只设 run 字体不足以通过 validator；字号/行距/颜色/页边距等默认值同源（`specs.BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
-- 项目 baseline 若使用仿宋、方正小标宋等其它中文字体，按 baseline 执行（见上方优先级第 3 条），**不得视为与「宋体」并列的第二套默认标准**。
-- **主题字体属性会覆盖显式字体**：`w:rFonts` 上残留 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` 时 Word 按主题字体渲染，显式 `w:eastAsia` 不生效；设置字体前必须先删 `*Theme` 属性（`mathdoc_cli`/`omml_helpers` 已处理，validator level 2 会断言）。
-- 正文与章节标题通过 `doc.styles` 设置一次，不逐 run 写字体；大标题、模板元信息等一次性段落可直接设 run 字体（如 `mathdoc_cli` 的 Title/meta 行）。
-- 表格标题（表N xxx）：表格**下方**居中、常规字体不加粗、不用黑体，space_before 4 / space_after 6。
-- **对齐默认（按文档层级）**：大标题与标题块元信息（副标题/作者/日期）**居中**；章节标题默认左对齐；正文默认左对齐；表格/公式按各自规则。用户或模板另有要求时以要求/模板为准（详见 `references/docx-style.md` 的 Alignment / Equation Alignment）。
-- 字号、行距、颜色、页边距、表格几何、列宽算法、对齐规则见 `references/docx-style.md`；默认常量集中在 `scripts/specs.py`（`BODY_*` / `HEADING_*` / `TITLE_SIZE_PT` / `MARGIN_*` / `COLOR_*`）。
-- No decorative literal spaces. Strip text segments, no spaces around `=`/`+`/`-`; minus sign U+2212.
+## Learning（安全流程）
 
-### Validation
-
-- BEFORE generation: batch-verify all formulas new to this document with `scripts/formula_check.py` (0 failures before writing the generator).
-- After generation, run `scripts/validator.py` on the saved `.docx`.
-- Level 1: basic open/equation/markdown residue checks（含代码块豁免：Consolas 段落里的 `**`/`$` 不判残留）。
-- Level 2: academic font/table checks. Level 3: publication checks plus page size.
-- **level 2 的字体断言以 `specs.py` 默认值为准**。若项目以既有 docx 作样式基线且基线另有约定，以基线为准，此时该断言不适用 —— 详见 `references/validator.md`。
-- LibreOffice/Poppler unavailable: explicitly state `渲染未验证`。
-
-### Rendering
-
-外部工具按「环境变量 → PATH → 常见安装路径」定位（实现在 `specs.find_soffice` / `specs.find_pdftoppm`），不要写死本机路径：
-
-- LibreOffice：`MATHDOC_SOFFICE` 覆盖，否则查 `soffice` / 常见安装目录。
-- poppler：`PDFTOPPM` 覆盖，否则查 PATH。Windows 上**必须指向原生 `pdftoppm.exe`**，不要用 `.cmd` 包装器（本环境会报 `The system cannot find the path specified`）。
-
-```bash
-soffice --headless --convert-to pdf --outdir out input.docx           # 渲染 PDF
-python scripts/render_check.py out/input.docx 关键词1 关键词2           # 文本冒烟
-python scripts/render_diff.py before.pdf after.pdf --out out/           # 像素 diff（--out 落盘差异图）
-```
-
-`render_check` 的 probe 必须与文档措辞**逐字节一致**（含空格）；中间 PDF 默认写临时目录，需要保留时加 `--keep-pdf`。
-
-## Auto-Learning（动态 skill）
-
-Skill 不是静态的：每次任务自动读经验、自动沉淀新经验，用户无需手动追加。
-
-- **任务开始前（自动读取）**：读取 `~/.config/math-doc/user-lessons.md`（路径可用 `python scripts/mathdoc_learn.py --path` 确认）。该文件存个人经验库（用户格式要求、踩坑、验证过的新语法），生成时必须遵循其中的条目，优先级：用户明确要求 > user-lessons 条目 > 内置默认规则。
-- **任务完成后（自动追加）**：若本次任务产生了新经验——踩坑（含根因/修复）、用户明确给出的格式要求、新验证通过的 LaTeX 语法——用 `mathdoc_learn.py --add` 自动追加，无需用户手动操作：
-
-  ```bash
-  python scripts/mathdoc_learn.py --add "教训一句话" --root-cause "根因" --fix "修复" --verify "验证" --task "项目名"
-  ```
-
-- 追加前用 `--list` 检查去重；经验文件在 skill 目录之外，`sync_install.sh` 不会覆盖；`references/lessons.md` 保持只读（内置通用经验），个人经验一律进 user-lessons.md。
+- **开始时**：读取 `~/.config/math-doc/user-lessons.md`（`mathdoc_learn.py --path` 确认位置）；只应用与当前任务直接相关的条目。
+- **优先级**：当前用户要求 > 项目 baseline/模板 > user-lessons > 内置默认。冲突时让位更高层。
+- **结束时**：若发现可复用经验，先生成候选条目（含来源/日期/任务），**展示给用户确认，不得静默写入**：
+  - 预览（不写文件）：`python scripts/mathdoc_learn.py --add "教训" --root-cause "根因" --fix "修复" --verify "验证" --task "任务"`
+  - 用户确认后加 `--yes` 才写入；条目自动带 ID/日期/来源。
+  - 回滚：`python scripts/mathdoc_learn.py --remove <ID>`。
+- `references/lessons.md` 保持只读（内置通用经验）；个人经验只进 user-lessons.md。
 
 ## Failure Handling
 
-- `latex2mathml` or `MML2OMML.XSL` unavailable: report environment missing; do not silently switch to Unicode or manual OMML.
-- Font missing: detect first, fallback second, note fallback in delivery.
-- Template exists: template wins.
-- Formula conversion fails: preserve the source formula and report the error instead of dropping it.
-- Validator reports `empty m:e`:优先检查含裸 `|...|` 的公式，改为 `\left|...\right|` 后重新生成。
+- 缺 `latex2mathml` / `MML2OMML.XSL`：报告环境缺失，不改用 Unicode/手写 OMML。
+- 字体缺失：先检测，再回退，并在交付中注明回退字体。
+- 存在模板：模板优先。
+- 公式转换失败：保留源公式并报告错误，不静默丢弃。
+- validator 报 `empty m:e` 等：按 `references/validator.md` 修复后重跑。
 
 ## References
 
-Load the relevant reference before generating:
-
-- `references/docx-style.md`: fonts, headings, spacing, page, tables, baseline extraction.
-- `references/omml.md`: latex2mathml -> XSLT -> OMML, lim/underbrace handling, manual OMML edge cases, accessibility.
-- `references/markdown-parser.md`: Markdown placeholder parsing, bold across `$...$`, literal `$`, spacing, mixed paragraphs.
-- `references/validator.md`: validation levels, table grid checks, PDF rendering.
-- `references/performance.md`: formula cache, XSLT single-pass, global styles, deferred attach, batch validation.
-- `references/lessons.md`: 批量章节文档生成实战（公式预验证、渲染冒烟 probes、GBK 假警报、模板继承、逐章流水线）。
-- `~/.config/math-doc/user-lessons.md`: 个人经验库，任务开始前自动读取、完成后自动追加（见 Auto-Learning）。
-- `CHANGELOG.md`: version history and past failures.
+- `references/project-scope.md`: 可迁移默认值 / baseline 示例 / 本机环境，避免把单项目约定当默认值。
+- `references/docx-style.md`: 字体、标题、间距、页面、表格、baseline 提取、标题与公式对齐（含编号独立公式完整示例）。
+- `references/omml.md`: latex2mathml → XSLT → OMML、limits、aligned、绝对值、主题字体、括号/撇号、空 m:e。
+- `references/markdown-parser.md`: Markdown 占位解析、跨行加粗、字面 `$`、混排段落。
+- `references/validator.md`: 校验层级、表格网格、PDF/字体验证。
+- `references/performance.md`: 公式缓存、XSLT 单次编译、全局样式、批量校验。
+- `references/lessons.md`: 内置实战经验（只读）。
+- `~/.config/math-doc/user-lessons.md`: 个人经验库（读取 + 经用户确认后追加）。
+- `CHANGELOG.md`: 版本历史与已修缺陷。
 
 ## Scripts
 
-- `scripts/specs.py`: 共享常量与外部工具定位（`NARY_LIM_LOC`、`FONT_*`、`find_soffice`、`find_pdftoppm`）。零依赖叶子模块，生成侧与校验侧共用。
-- `scripts/latex_to_omml.py`: LaTeX -> OMML 管线。入口 `latex_to_omml`，旧名 `latex_to_omml_alt/_fixed/_fixed_alt` 保留为等价别名。
-- `scripts/omml_helpers.py`: 手工 OMML builder（`mpara_mix`、`mnary`、`mlim`、`mabs` 等），供 latex2mathml 表达不了的边缘公式。
-- `scripts/mathdoc_cli.py`: `--template proof|notes|derivation` skeleton generator.
-- `scripts/validator.py`: post-generation .docx validator with `--level 1|2|3`.
-- `scripts/render_diff.py`: pixel diff between rendered PDFs（`--out` 写差异图）。
-- `scripts/formula_check.py`: batch-verify LaTeX formulas against latex_to_omml before generating.
-- `scripts/render_check.py`: lightweight render smoke test (LibreOffice -> PDF -> text probes).
-- `scripts/publish_report.py`: delivery report — validate a docx and write `validation-report.md` (equation count, checks, OMML engine), producing the source/result/report triplet.
-- `scripts/mathdoc_learn.py`: 动态 skill 经验管理 — `--add` 自动追加教训到个人经验库（自动带日期与问题/根因/修复/验证格式）、`--list` 查看、`--path` 定位。
+- `scripts/specs.py`: 共享常量与外部工具定位（`NARY_LIM_LOC`、`FONT_*`、`find_soffice`、`find_pdftoppm`）。
+- `scripts/latex_to_omml.py`: LaTeX → OMML 单一入口（全名/旧别名兼容）。
+- `scripts/omml_helpers.py`: 手工 OMML builder（边缘公式）。
+- `scripts/mathdoc_cli.py`: `--template proof|notes|derivation` 骨架生成器。
+- `scripts/validator.py`: `--level 1|2|3` 校验。
+- `scripts/formula_check.py`: 生成前批量公式预检。
+- `scripts/render_check.py`: 文本冒烟；`scripts/render_diff.py`: 像素 diff。
+- `scripts/publish_report.py`: 交付报告（公式数/校验项/引擎来源）。
+- `scripts/mathdoc_learn.py`: 经验候选预览（默认不写）、`--yes` 写入、`--list`、`--remove <ID>`、`--path`。
 
 ```bash
 python scripts/mathdoc_cli.py --template proof --title 证明 --output proof.docx
 python scripts/validator.py proof.docx --level 2
 python scripts/formula_check.py --file new_formulas.txt
 python scripts/render_check.py doc.docx 定理 定义 性质
-python scripts/mathdoc_learn.py --add "本次教训" --root-cause "根因" --fix "修复" --verify "验证"
 ```
 
 ## Equation Numbering
 
-Default: plain visible text `(1)`, `(2)`, `(3)` with a right tab stop. Use SEQ fields only when the document needs cross-references, and warn that Word requires Ctrl+A F9 to refresh.
+默认使用正文可见编号 `(1)`、`(2)`，配 center tab + right tab；不要默认用 SEQ 域，只有需要交叉引用时才用，并提示 Word 需 Ctrl+A F9 刷新。完整实现见 `references/docx-style.md` 的“编号独立公式完整示例”。

@@ -1,5 +1,13 @@
 # math-doc Skill Changelog
 
+## 2026-10-23 v2.9.0 — 按 review 收敛范围与结构
+
+- **范围**：description / Output Contract 收窄——主交付 `.docx`；LaTeX/Markdown 仅作源格式输入或中间产物，不定义其成品排版；新增 `references/project-scope.md` 区分可迁移默认值 / baseline 示例（仿宋、方正小标宋、A4/2.1cm 等）/ 本机环境路径。
+- **主文件精简**：SKILL.md 从 181 行压到 142 行，只保留输出契约、决策规则、格式优先级、索引与安全流程；latex2mathml/OMML 细节集中到 `references/omml.md`，不再在 Pipeline / Mandatory Rules / Failure Handling 重复。
+- **Auto-Learning 安全化**：`mathdoc_learn.py` 默认只打印候选条目不写文件，必须加 `--yes`；条目带 `L-YYYYMMDD-NN` ID、日期、来源；新增 `--remove <ID>` 回滚；优先级调整为 当前用户要求 > baseline > user-lessons > 内置默认，禁止静默追加。
+- **编号公式示例**：`mathdoc_cli.add_numbered_equation` 改为「左对齐 + center tab（半版心）+ right tab（版心右边界）」，序列 `TAB → oMath → TAB(n)`；`references/docx-style.md` 增加完整 Python/XML 示例与自检，解释为什么不能用段落 CENTER。
+- 文档：`SKILL.md`、`references/docx-style.md`、`references/project-scope.md`、`scripts/mathdoc_learn.py`、`scripts/mathdoc_cli.py`。
+
 ## 2026-10-23 v2.8.8 — 清理括号组空 m:e
 
 - `latex_to_omml` 新增 `_drop_empty_delimiter_slots()`：MML2OMML 对以 `\int` 开头的 `\left[...\right]` 括号组偶尔生成 `m:d` 里一空一实的两个 `m:e`，Word 会把空槽当占位符。现在只删除多出来的空槽（保留至少一个非空 e）。

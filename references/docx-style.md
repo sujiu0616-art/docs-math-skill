@@ -6,6 +6,8 @@
 > 3. 基于已有文档且用户未提要求 → 以该文档原有格式为基准（baseline 优先），本文默认值只补缺失属性。
 >
 > 任何情况下不得覆盖用户明确要求；也不得用本文默认值覆盖已有文档格式。禁止串用。
+>
+> 默认值 / baseline / 本机环境的边界见 `references/project-scope.md`。
 
 ## Font
 
@@ -18,7 +20,7 @@
 - **主题字体陷阱**：`w:rFonts` 的 `w:asciiTheme`/`w:hAnsiTheme`/`w:eastAsiaTheme`/`w:cstheme` **优先于**显式 `w:ascii`/`w:eastAsia`；只设显式字体而保留 Theme 属性时，Word 实际仍用主题字体（典型：Heading 设了黑体却渲染成主题字体，validator 只读 `w:eastAsia` 也会误判通过）。设置字体前必须删除这些 `*Theme` 属性；`mathdoc_cli`、`omml_helpers` 已处理，validator level 2 会断言。
 - Markdown/HTML 用 CSS 映射同名字体；LaTeX 用 `ctex` 的 CJK 字体映射。
 
-字体检测不能只依赖 `InstalledFontCollection`。检查 `AppData\Local\Microsoft\Windows\Fonts`、注册表字体项、WPF `SystemFontFamilies` 或 `PrivateFontCollection`；还要枚举实际字族并检查 HKCU/用户字体目录；只有全部找不到时才回退宋体。XML 断言通过不等于渲染字体正确——有渲染工具时用 PDF 内嵌字体名做最终核对（见 `references/validator.md` 的 PDF Rendering）。
+字体检测不能只依赖 `InstalledFontCollection`。检查 `AppData\Local\Microsoft\Windows\Fonts`（Windows 示例路径，见 project-scope.md）、注册表字体项、WPF `SystemFontFamilies` 或 `PrivateFontCollection`；还要枚举实际字族并检查 HKCU/用户字体目录；只有全部找不到时才回退宋体。XML 断言通过不等于渲染字体正确——有渲染工具时用 PDF 内嵌字体名做最终核对（见 `references/validator.md` 的 PDF Rendering）。
 
 ```python
 from docx.shared import Pt, RGBColor
@@ -168,10 +170,54 @@ def set_table_widths(table, widths_cm):
 
 ### Word / OMML 机制
 
-- 独立公式段落：段落对齐 `CENTER` + 右侧制表位放编号；`mathdoc_cli.add_numbered_equation` 即此实现，编号制表位 = 版心右边界（页宽 − 左右页边距）。
+- **编号独立公式**：段落**左对齐** + **center tab（半版心）** + **right tab（版心右边界）**；内容顺序为 `TAB → m:oMath → TAB → (n)`。center tab 让公式围绕页面中心，right tab 把编号推到右边；不要用段落 `CENTER`（编号也参与居中，公式会偏左）。
 - 仅含公式的段落会被 Word 当作 display math，水平位置还受 `m:oMathParaPr/m:jc` 影响（默认 `centerGroup`）；需要整段左/右对齐时按模板/用户要求显式覆盖，并在交付说明中注明。
 - 多行公式用 `aligned`（生成侧自动改写为 `array{rl}` → OMML `m:m`）作为单个公式块，不要拆成多段分别居中。
-- **编号公式的 inline 陷阱**：编号若用「行内 `m:oMath` + 右制表位 `(n)`」，Word 会把整条公式当 inline math：`naryPr/limLoc` 不生效，∑/∏ 上下限被压成侧标。解决：编号公式用 `latex_to_omml(..., stack_limits=True)`，把 ∑/∏ 结构化为 `m:limUpp(m:limLow(算子, 下限), 上限)`（没有 inline/display 之分，强制叠排）；算子字号默认提到 14pt（`specs.DISPLAY_OPERATOR_SIZE_PT`），避免 11pt 算子配放大分式偏小。
+- **编号公式的 inline 陷阱**：编号公式里放的是行内 `m:oMath`，Word 会按 inline math 排：`naryPr/limLoc` 不生效，∑/∏ 上下限被压成侧标。编号公式必须用 `latex_to_omml(..., stack_limits=True)` 结构化为 `m:limUpp(m:limLow(...))`（没有 inline/display 之分），算子字号默认 14pt（`specs.DISPLAY_OPERATOR_SIZE_PT`）。
+
+### 编号独立公式完整示例
+
+目标：公式居中、编号右对齐；两者由 tab 组合实现（`mathdoc_cli.add_numbered_equation` 的参考实现）：
+
+```python
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
+from docx.shared import Inches, Pt
+from specs import PAGE_WIDTH_IN, MARGIN_LEFT_IN, MARGIN_RIGHT_IN, DISPLAY_OPERATOR_SIZE_PT
+from latex_to_omml import latex_to_omml
+
+p = doc.add_paragraph()
+p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+usable = PAGE_WIDTH_IN - MARGIN_LEFT_IN - MARGIN_RIGHT_IN
+p.paragraph_format.tab_stops.add_tab_stop(Inches(usable / 2), WD_TAB_ALIGNMENT.CENTER)
+p.paragraph_format.tab_stops.add_tab_stop(Inches(usable), WD_TAB_ALIGNMENT.RIGHT)
+p.paragraph_format.space_before = Pt(4)
+p.paragraph_format.space_after = Pt(6)
+
+p.add_run('\t')                       # 1) 走到 center tab
+p._element.append(latex_to_omml(       # 2) 公式（行内 oMath）
+    latex, stack_limits=True, operator_size_pt=DISPLAY_OPERATOR_SIZE_PT
+))
+p.add_run('\t(1)')                    # 3) 走到 right tab，编号右对齐
+```
+
+段落 XML 形状（简化）：
+
+```xml
+<w:p>
+  <w:pPr>
+    <w:jc w:val="left"/>
+    <w:tabs>
+      <w:tab w:val="center" w:pos="4680"/>  <!-- 半版心 -->
+      <w:tab w:val="right"  w:pos="9360"/>  <!-- 版心右边界 -->
+    </w:tabs>
+  </w:pPr>
+  <w:r><w:tab/></w:r>
+  <m:oMath>…</m:oMath>
+  <w:r><w:tab/><w:t>(1)</w:t></w:r>
+</w:p>
+```
+
+自检：段落 `p.text` 为 `\t\t(1)`（第一个 tab run + 编号 run；公式不在 `p.text` 中），oMath 位于第一个和第二个 run 之间；Word/LO 中公式在页面中心、编号贴右边界。若改用段落 `CENTER`，编号也参与居中，公式会偏左——这是常见错误。
 
 ## Baseline Extraction
 
